@@ -52,6 +52,8 @@ export async function saveEmployee(_prev: FormState, form: FormData): Promise<Fo
     });
     // Every employee gets a field login (phone + PIN in phase 2).
     if (!id) await tx.user.create({ data: { name, phone: data.phone, role: "FIELD", employeeId: e.id } });
+    // Keep the crew member's phone login in step (name, and off when they leave).
+    else await tx.user.updateMany({ where: { employeeId: e.id }, data: { name, active: data.active } });
     return e;
   });
   revalidatePath("/", "layout");
@@ -216,5 +218,38 @@ export async function addDowntime(form: FormData) {
 export async function deleteDowntime(form: FormData) {
   await authorize(OFFICE);
   await db.equipmentDowntime.delete({ where: { id: String(form.get("id")) } });
+  revalidatePath("/", "layout");
+}
+
+// ───────────────────────── Office logins & skills ─────────────────────────
+
+/** Owner only: add an office login (another owner or a dispatcher). Crew logins come with each employee. */
+export async function addOfficeUser(form: FormData) {
+  const user = await authorize(["OWNER"]);
+  const name = str(form, "name");
+  const role = str(form, "role") === "OWNER" ? "OWNER" : "DISPATCHER";
+  if (!name) return;
+  await db.$transaction([
+    db.user.create({ data: { name, role } }),
+    db.auditLog.create({ data: { actorId: user.id, entityType: "User", entityId: name, action: "CREATE", summary: `Added office login for ${name} (${role.toLowerCase()})` } }),
+  ]);
+  revalidatePath("/", "layout");
+}
+
+export async function setOfficeUserActive(form: FormData) {
+  const user = await authorize(["OWNER"]);
+  const id = String(form.get("id"));
+  if (id === user.id) return; // can't lock yourself out
+  const active = form.get("active") === "on";
+  const target = await db.user.update({ where: { id }, data: { active } });
+  await db.auditLog.create({ data: { actorId: user.id, entityType: "User", entityId: id, action: active ? "ENABLE" : "DISABLE", summary: `${active ? "Re-enabled" : "Turned off"} login for ${target.name}` } });
+  revalidatePath("/", "layout");
+}
+
+export async function addSkill(form: FormData) {
+  await authorize(OFFICE);
+  const name = str(form, "name");
+  if (!name) return;
+  await db.skill.upsert({ where: { name }, update: {}, create: { name } });
   revalidatePath("/", "layout");
 }

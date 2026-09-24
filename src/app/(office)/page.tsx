@@ -2,6 +2,7 @@ import Link from "next/link";
 import clsx from "clsx";
 import { FINDING_ICON } from "@/components/board/ConflictDialog";
 import { weatherIcon } from "@/components/board/WeatherBadge";
+import { demoToolsAllowed } from "@/app/actions/demo";
 import { OFFICE, requireUser } from "@/lib/auth";
 import { loadSnapshot, openProjects, toCard } from "@/lib/data";
 import { db } from "@/lib/db";
@@ -13,7 +14,8 @@ import { addDays, dateToDay, dayToDate, fmtDay, fmtDayLong, fmtRange, today } fr
 export const metadata = { title: "Dashboard · BAM Scheduling" };
 
 export default async function Dashboard() {
-  await requireUser(OFFICE);
+  const user = await requireUser(OFFICE);
+  const sampleMode = user.role === "OWNER" && (await demoToolsAllowed());
   const t = today();
   const horizon = addDays(t, 14);
 
@@ -61,6 +63,11 @@ export default async function Dashboard() {
 
   return (
     <main className="mx-auto max-w-7xl space-y-6 p-3 sm:p-6">
+      {sampleMode && (
+        <Link href="/activity" className="block rounded-xl border-2 border-dashed border-amber-400 bg-amber-50 p-3 text-sm text-amber-900 hover:bg-amber-100">
+          🧪 You&apos;re looking at <b>sample data</b>. When you&apos;re ready for real jobs and real people, go to <b>Activity → Start using real data</b>.
+        </Link>
+      )}
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1 className="text-2xl font-bold">Today · {fmtDayLong(t)}</h1>

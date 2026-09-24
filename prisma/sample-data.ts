@@ -12,6 +12,7 @@
 
 import type { EquipmentType, Prisma, Priority, PrismaClient, ProjectStatus, WeatherSensitivity } from "@prisma/client";
 import { addDays, dayOfWeek, dayToDate, today, workdayOffset, type Day } from "../src/lib/time";
+import { wipeAllData } from "./wipe";
 
 /** Wipe everything and load the sample data. Used by `npm run db:seed`, the first deploy, and the owner's "reset sample data" button. */
 export async function loadSampleData(db: PrismaClient): Promise<string> {
@@ -24,39 +25,8 @@ export async function loadSampleData(db: PrismaClient): Promise<string> {
   };
   const h = (hh: number, mm = 0) => hh * 60 + mm;
 
-  async function reset() {
-    // Children first.
-    await db.$transaction([
-      db.auditLog.deleteMany(),
-    db.storedFile.deleteMany(),
-      db.schedulingOverride.deleteMany(),
-      db.conditionReport.deleteMany(),
-      db.projectPhoto.deleteMany(),
-      db.projectNote.deleteMany(),
-      db.projectStatusHistory.deleteMany(),
-      db.equipmentAssignment.deleteMany(),
-      db.assignment.deleteMany(),
-      db.scheduleBlock.deleteMany(),
-      db.projectRequiredEquipment.deleteMany(),
-      db.projectRequiredSkill.deleteMany(),
-      db.project.deleteMany(),
-      db.jobType.deleteMany(),
-      db.customer.deleteMany(),
-      db.weatherForecast.deleteMany(),
-      db.equipmentDowntime.deleteMany(),
-      db.equipment.deleteMany(),
-      db.timeOff.deleteMany(),
-      db.availability.deleteMany(),
-      db.employeeSkill.deleteMany(),
-      db.user.deleteMany(),
-      db.employee.deleteMany(),
-      db.skill.deleteMany(),
-      db.location.deleteMany(),
-    ]);
-  }
-
   async function main() {
-    await reset();
+    await wipeAllData(db);
 
     // ── Locations (normally created automatically from addresses) ──
     const loc = {

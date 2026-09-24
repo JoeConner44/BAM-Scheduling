@@ -1,3 +1,0 @@
-module.exports=[57104,a=>{"use strict";var b=a.i(51817),c=a.i(96484);a.s([],85841),a.i(85841),a.s(["0083363619d027391fd48ef0a3f08ac0c887729bb7",()=>b.signOut,"40369ddad361052a73248f88b2c1add2734b4b06d6",()=>c.addProjectNote,"403f79f359069b484064daac6fada652e83164254d",()=>c.uploadProjectPhoto,"4043e90f8c9568ec2f5884ad2046c06e23b5b6f5e3",()=>b.signInAs,"406b994d8a26ec3474d8691b68113021950f36c7da",()=>c.deleteProject,"40e63d1e417a2b83c37871c4559ec4de2f275744e0",()=>c.changeProjectStatus,"60faedc88c091f1e50135fab82f54766e77834b3e5",()=>c.saveProject],57104)}];
-
-//# sourceMappingURL=_next-internal_server_app_%28office%29_projects_%5Bid%5D_page_actions_06wp62v.js.map

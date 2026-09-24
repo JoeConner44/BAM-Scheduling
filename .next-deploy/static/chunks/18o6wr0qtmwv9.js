@@ -1,1 +1,0 @@
-(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,19624,t=>{"use strict";var n=t.i(43476);t.s(["ConfirmButton",0,function({message:t,className:o,children:e}){return(0,n.jsx)("button",{className:o,onClick:n=>!window.confirm(t)&&n.preventDefault(),children:e})}])}]);

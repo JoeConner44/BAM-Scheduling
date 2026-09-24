@@ -558,3 +558,12 @@ model StoredFile {
   data        Bytes
   createdAt   DateTime @default(now())
 }
+
+// ───────────────────────────── Settings ─────────────────────────────
+
+/// Small key/value settings, e.g. mode = "live" once the company switches from sample data to real data.
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

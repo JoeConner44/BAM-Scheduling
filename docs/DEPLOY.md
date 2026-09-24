@@ -46,10 +46,19 @@ It takes about 10 minutes, and you only do it once. After that, every change pus
 - The sample dates start from the day the data was loaded. To get a fresh week, sign in as **Pat Owner**, go to **Activity** and click **↺ Reset sample data**. This erases every change.
 - Photos taken on the phone are stored in the database, which works for testing. They move to dedicated photo storage in phase 2.
 
-## Before using it with real jobs
+## Switching to real jobs and real people
 
-- In **Settings → Environment Variables**, add `ALLOW_DEMO_RESET` = `false` so the reset button disappears. Then redeploy.
-- Phase 2 replaces the "pick who you are" sign-in with real passwords (office) and phone number + PIN (crews). Until then, anyone with the access code can act as anyone.
+1. Sign in as **Pat Owner** and go to **Activity**.
+2. In the yellow **"This site is showing sample data"** box, type your name and click **Start using real data**, then confirm. This deletes all sample projects, people, equipment and history. It keeps a starter list of skills and job types, and signs you in as the owner under your own name.
+3. You land on **People** with a short checklist:
+   - Add your crew with **+ Add person**. Each person automatically gets a phone login.
+   - Add dispatchers under **Office logins**.
+   - Add trucks, trailers and machines on **Equipment**.
+   - Add jobs with **+ New project**.
+   - Schedule them by dragging on **Schedule**.
+4. After this, the sample-data buttons disappear for good, so real data can't be wiped by accident.
+
+**Until phase 2, anyone who knows the access code can sign in as anyone.** Keep the code private and change it by editing `SITE_PASSWORD` under **Environment Variables**, then **Redeploy**. Phase 2 replaces the "pick who you are" sign-in with real passwords (office) and phone number + PIN (crews).
 
 ## If something goes wrong
 

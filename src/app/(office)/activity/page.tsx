@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { demoResetAllowed, resetSampleData } from "@/app/actions/demo";
+import { demoToolsAllowed, resetSampleData, startWithRealData } from "@/app/actions/demo";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { OFFICE, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -12,7 +12,7 @@ export const metadata = { title: "Activity · BAM Scheduling" };
 export default async function ActivityPage({ searchParams }: PageProps<"/activity">) {
   const user = await requireUser(OFFICE);
   const sp = await searchParams;
-  const canReset = user.role === "OWNER" && (await demoResetAllowed());
+  const canReset = user.role === "OWNER" && (await demoToolsAllowed());
   const onlyOverrides = sp.filter === "overrides";
   const [entries, overrides] = await Promise.all([
     db.auditLog.findMany({ include: { actor: true }, orderBy: { at: "desc" }, take: 200, where: onlyOverrides ? { summary: { contains: "(override)" } } : undefined }),
@@ -44,12 +44,28 @@ export default async function ActivityPage({ searchParams }: PageProps<"/activit
         </div>
       </div>
       {canReset && (
-        <form action={resetSampleData} className="card flex flex-wrap items-center justify-between gap-2 border-dashed p-3 text-sm">
-          <span className="text-slate-600">Demo site: reload the fictional sample data with dates starting today. This erases every change.</span>
-          <ConfirmButton className="btn-secondary text-red-700" message="Erase everything and reload the sample data? Everyone will need to sign in again.">
-            ↺ Reset sample data
-          </ConfirmButton>
-        </form>
+        <section className="card space-y-3 border-2 border-dashed border-amber-400 p-4">
+          <h2 className="font-bold">🧪 This site is showing sample data</h2>
+          <form action={resetSampleData} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+            <span className="text-slate-600">Reload the fictional sample data with dates starting today. Erases every change.</span>
+            <ConfirmButton className="btn-secondary" message="Erase everything and reload the sample data? Everyone will need to sign in again.">
+              ↺ Reset sample data
+            </ConfirmButton>
+          </form>
+          <form action={startWithRealData} className="space-y-2 border-t border-amber-200 pt-3 text-sm">
+            <div className="font-semibold">Ready for real jobs and real people?</div>
+            <p className="text-slate-600">
+              Deletes all sample projects, people, equipment and history, keeps a starter list of skills and job types, and signs you in as the owner.
+              After this, both sample-data buttons disappear for good.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <input name="ownerName" className="input max-w-xs" placeholder="Your name (e.g. Joe Conner)" required />
+              <ConfirmButton className="btn-danger" message="Delete ALL sample data and start with an empty company? This can't be undone.">
+                Start using real data
+              </ConfirmButton>
+            </div>
+          </form>
+        </section>
       )}
       {[...groups.entries()].map(([day, list]) => (
         <section key={day}>
