@@ -1,0 +1,3 @@
+module.exports=[27572,a=>{"use strict";var b=a.i(7997);a.s(["default",0,function({children:a}){return(0,b.jsx)("html",{lang:"en",className:"h-full antialiased",children:(0,b.jsx)("body",{className:"min-h-full",children:a})})},"metadata",0,{title:"BAM Scheduling",description:"Visual scheduling and dispatch board for pavement striping crews."},"viewport",0,{width:"device-width",initialScale:1,themeColor:"#0f172a"}])},50645,function(a){a.n(a.i(27572))}];
+
+//# sourceMappingURL=src_app_layout_tsx_0r5yz5t._.js.map

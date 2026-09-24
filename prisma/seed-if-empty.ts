@@ -1,7 +1,10 @@
 // Runs on every deploy: loads the sample data only if the database has no users yet,
 // so a fresh hosted database is ready to click through and real data is never touched.
 import { PrismaClient } from "@prisma/client";
+import { resolveDatabaseEnv } from "../src/lib/db-env";
 import { loadSampleData } from "./sample-data";
+
+resolveDatabaseEnv();
 
 const db = new PrismaClient();
 

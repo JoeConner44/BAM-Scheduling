@@ -1,0 +1,115 @@
+{
+  "node": {
+    "0083363619d027391fd48ef0a3f08ac0c887729bb7": {
+      "workers": {
+        "app/(office)/board/page": {
+          "moduleId": 98085,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "signOut",
+      "filename": "src/app/actions/session.ts"
+    },
+    "4043e90f8c9568ec2f5884ad2046c06e23b5b6f5e3": {
+      "workers": {
+        "app/(office)/board/page": {
+          "moduleId": 98085,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "signInAs",
+      "filename": "src/app/actions/session.ts"
+    },
+    "6090d31a6c9d38546145400e291c8451ba7f6c664c": {
+      "workers": {
+        "app/(office)/board/page": {
+          "moduleId": 98085,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "assignEmployee",
+      "filename": "src/app/actions/schedule.ts"
+    },
+    "607b233d8e72199c080c69e9942d1cb792a59a3ec0": {
+      "workers": {
+        "app/(office)/board/page": {
+          "moduleId": 98085,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "assignEquipment",
+      "filename": "src/app/actions/schedule.ts"
+    },
+    "6031f6ec99c16a97125e00c69c899785f7c1487b28": {
+      "workers": {
+        "app/(office)/board/page": {
+          "moduleId": 98085,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "createBlock",
+      "filename": "src/app/actions/schedule.ts"
+    },
+    "608811fab08b17beb82c8d3b699819bb45629ade78": {
+      "workers": {
+        "app/(office)/board/page": {
+          "moduleId": 98085,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "moveBlock",
+      "filename": "src/app/actions/schedule.ts"
+    },
+    "4067a3dcea03edfa8f1b9f8f57e4d4ecd5ba2a7dc3": {
+      "workers": {
+        "app/(office)/board/page": {
+          "moduleId": 98085,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "removeBlock",
+      "filename": "src/app/actions/schedule.ts"
+    },
+    "404da880b5b07149072d1b848617dd523330f661ab": {
+      "workers": {
+        "app/(office)/board/page": {
+          "moduleId": 98085,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "setBlockState",
+      "filename": "src/app/actions/schedule.ts"
+    },
+    "40506acf429c6f3bb4ff8d9dbb3d87e7237e16666f": {
+      "workers": {
+        "app/(office)/board/page": {
+          "moduleId": 98085,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "unassignEmployee",
+      "filename": "src/app/actions/schedule.ts"
+    },
+    "406b2cc73c5954a385feaaaf1842821697c545f81b": {
+      "workers": {
+        "app/(office)/board/page": {
+          "moduleId": 98085,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "unassignEquipment",
+      "filename": "src/app/actions/schedule.ts"
+    }
+  },
+  "edge": {}
+}

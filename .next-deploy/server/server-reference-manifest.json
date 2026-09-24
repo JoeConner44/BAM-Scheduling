@@ -1,0 +1,592 @@
+{
+  "node": {
+    "0083363619d027391fd48ef0a3f08ac0c887729bb7": {
+      "workers": {
+        "app/(office)/activity/page": {
+          "moduleId": 65553,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/board/page": {
+          "moduleId": 98085,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/employees/[id]/page": {
+          "moduleId": 35939,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/employees/new/page": {
+          "moduleId": 20457,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/employees/page": {
+          "moduleId": 55496,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/equipment/[id]/page": {
+          "moduleId": 28626,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/equipment/new/page": {
+          "moduleId": 58680,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/equipment/page": {
+          "moduleId": 63348,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/page": {
+          "moduleId": 60611,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/projects/[id]/edit/page": {
+          "moduleId": 27916,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/projects/[id]/page": {
+          "moduleId": 57104,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/projects/new/page": {
+          "moduleId": 74700,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/todo/page": {
+          "moduleId": 38765,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/weather/page": {
+          "moduleId": 43924,
+          "async": false,
+          "codeHash": null
+        },
+        "app/field/page": {
+          "moduleId": 88804,
+          "async": false,
+          "codeHash": null
+        },
+        "app/login/page": {
+          "moduleId": 68030,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/session.ts",
+      "exportedName": "signOut"
+    },
+    "4043e90f8c9568ec2f5884ad2046c06e23b5b6f5e3": {
+      "workers": {
+        "app/(office)/activity/page": {
+          "moduleId": 65553,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/board/page": {
+          "moduleId": 98085,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/employees/[id]/page": {
+          "moduleId": 35939,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/employees/new/page": {
+          "moduleId": 20457,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/employees/page": {
+          "moduleId": 55496,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/equipment/[id]/page": {
+          "moduleId": 28626,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/equipment/new/page": {
+          "moduleId": 58680,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/equipment/page": {
+          "moduleId": 63348,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/page": {
+          "moduleId": 60611,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/projects/[id]/edit/page": {
+          "moduleId": 27916,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/projects/[id]/page": {
+          "moduleId": 57104,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/projects/new/page": {
+          "moduleId": 74700,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/todo/page": {
+          "moduleId": 38765,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/weather/page": {
+          "moduleId": 43924,
+          "async": false,
+          "codeHash": null
+        },
+        "app/field/page": {
+          "moduleId": 88804,
+          "async": false,
+          "codeHash": null
+        },
+        "app/login/page": {
+          "moduleId": 68030,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/session.ts",
+      "exportedName": "signInAs"
+    },
+    "0061419b67a172ea02155cce344c60b51e9647bec4": {
+      "workers": {
+        "app/(office)/activity/page": {
+          "moduleId": 65553,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/demo.ts",
+      "exportedName": "demoResetAllowed"
+    },
+    "0085b98abb1126e29cc0db893b9ac453f2d7136b2c": {
+      "workers": {
+        "app/(office)/activity/page": {
+          "moduleId": 65553,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/demo.ts",
+      "exportedName": "resetSampleData"
+    },
+    "6090d31a6c9d38546145400e291c8451ba7f6c664c": {
+      "workers": {
+        "app/(office)/board/page": {
+          "moduleId": 98085,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/schedule.ts",
+      "exportedName": "assignEmployee"
+    },
+    "607b233d8e72199c080c69e9942d1cb792a59a3ec0": {
+      "workers": {
+        "app/(office)/board/page": {
+          "moduleId": 98085,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/schedule.ts",
+      "exportedName": "assignEquipment"
+    },
+    "6031f6ec99c16a97125e00c69c899785f7c1487b28": {
+      "workers": {
+        "app/(office)/board/page": {
+          "moduleId": 98085,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/schedule.ts",
+      "exportedName": "createBlock"
+    },
+    "608811fab08b17beb82c8d3b699819bb45629ade78": {
+      "workers": {
+        "app/(office)/board/page": {
+          "moduleId": 98085,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/schedule.ts",
+      "exportedName": "moveBlock"
+    },
+    "4067a3dcea03edfa8f1b9f8f57e4d4ecd5ba2a7dc3": {
+      "workers": {
+        "app/(office)/board/page": {
+          "moduleId": 98085,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/schedule.ts",
+      "exportedName": "removeBlock"
+    },
+    "404da880b5b07149072d1b848617dd523330f661ab": {
+      "workers": {
+        "app/(office)/board/page": {
+          "moduleId": 98085,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/schedule.ts",
+      "exportedName": "setBlockState"
+    },
+    "40506acf429c6f3bb4ff8d9dbb3d87e7237e16666f": {
+      "workers": {
+        "app/(office)/board/page": {
+          "moduleId": 98085,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/schedule.ts",
+      "exportedName": "unassignEmployee"
+    },
+    "406b2cc73c5954a385feaaaf1842821697c545f81b": {
+      "workers": {
+        "app/(office)/board/page": {
+          "moduleId": 98085,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/schedule.ts",
+      "exportedName": "unassignEquipment"
+    },
+    "40afc5bcaf6a49e8458840ae4d65e0d6f13038c81f": {
+      "workers": {
+        "app/(office)/employees/[id]/page": {
+          "moduleId": 35939,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/employees/page": {
+          "moduleId": 55496,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/equipment/[id]/page": {
+          "moduleId": 28626,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/resources.ts",
+      "exportedName": "addDowntime"
+    },
+    "40c7afbe0ca2c2ce5d9f6b7f877de13b7acb3e008c": {
+      "workers": {
+        "app/(office)/employees/[id]/page": {
+          "moduleId": 35939,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/employees/page": {
+          "moduleId": 55496,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/equipment/[id]/page": {
+          "moduleId": 28626,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/resources.ts",
+      "exportedName": "markSickToday"
+    },
+    "40ed49c8eaf63c08c5c0a7936f0a5815ecea9ef40a": {
+      "workers": {
+        "app/(office)/employees/[id]/page": {
+          "moduleId": 35939,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/employees/page": {
+          "moduleId": 55496,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/equipment/[id]/page": {
+          "moduleId": 28626,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/resources.ts",
+      "exportedName": "deleteTimeOff"
+    },
+    "40f17dc1df38327a81fdaa4990061b14b6d7594118": {
+      "workers": {
+        "app/(office)/employees/[id]/page": {
+          "moduleId": 35939,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/employees/page": {
+          "moduleId": 55496,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/equipment/[id]/page": {
+          "moduleId": 28626,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/resources.ts",
+      "exportedName": "deleteDowntime"
+    },
+    "6001e9bd2adeea963348107687d5d4eba51930ff93": {
+      "workers": {
+        "app/(office)/employees/[id]/page": {
+          "moduleId": 35939,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/employees/page": {
+          "moduleId": 55496,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/equipment/[id]/page": {
+          "moduleId": 28626,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/equipment/new/page": {
+          "moduleId": 58680,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/resources.ts",
+      "exportedName": "saveEquipment"
+    },
+    "604cc0708ac99859b5fe38e71ce7a3d7c69af3aaf7": {
+      "workers": {
+        "app/(office)/employees/[id]/page": {
+          "moduleId": 35939,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/employees/new/page": {
+          "moduleId": 20457,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/employees/page": {
+          "moduleId": 55496,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/equipment/[id]/page": {
+          "moduleId": 28626,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/resources.ts",
+      "exportedName": "addTimeOff"
+    },
+    "60d6158d2613c199009239ebe41d0be462c7db8a52": {
+      "workers": {
+        "app/(office)/employees/[id]/page": {
+          "moduleId": 35939,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/employees/new/page": {
+          "moduleId": 20457,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/employees/page": {
+          "moduleId": 55496,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/equipment/[id]/page": {
+          "moduleId": 28626,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/resources.ts",
+      "exportedName": "saveEmployee"
+    },
+    "40369ddad361052a73248f88b2c1add2734b4b06d6": {
+      "workers": {
+        "app/(office)/projects/[id]/page": {
+          "moduleId": 57104,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/projects.ts",
+      "exportedName": "addProjectNote"
+    },
+    "403f79f359069b484064daac6fada652e83164254d": {
+      "workers": {
+        "app/(office)/projects/[id]/page": {
+          "moduleId": 57104,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/projects.ts",
+      "exportedName": "uploadProjectPhoto"
+    },
+    "406b994d8a26ec3474d8691b68113021950f36c7da": {
+      "workers": {
+        "app/(office)/projects/[id]/page": {
+          "moduleId": 57104,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/projects.ts",
+      "exportedName": "deleteProject"
+    },
+    "40e63d1e417a2b83c37871c4559ec4de2f275744e0": {
+      "workers": {
+        "app/(office)/projects/[id]/page": {
+          "moduleId": 57104,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/projects.ts",
+      "exportedName": "changeProjectStatus"
+    },
+    "60faedc88c091f1e50135fab82f54766e77834b3e5": {
+      "workers": {
+        "app/(office)/projects/[id]/edit/page": {
+          "moduleId": 27916,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/projects/[id]/page": {
+          "moduleId": 57104,
+          "async": false,
+          "codeHash": null
+        },
+        "app/(office)/projects/new/page": {
+          "moduleId": 74700,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/projects.ts",
+      "exportedName": "saveProject"
+    },
+    "4002a4a2ac2e4952290a6903863f59084a199859b2": {
+      "workers": {
+        "app/(office)/weather/page": {
+          "moduleId": 43924,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/weather.ts",
+      "exportedName": "setForecast"
+    },
+    "4064028d6a018cc113104e2ffd86ebb454e656eb42": {
+      "workers": {
+        "app/field/page": {
+          "moduleId": 88804,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/field.ts",
+      "exportedName": "addFieldNote"
+    },
+    "4036d18729e4a809954a5420dc4e19e8d8bb6c0ef3": {
+      "workers": {
+        "app/field/page": {
+          "moduleId": 88804,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/field.ts",
+      "exportedName": "addFieldPhoto"
+    },
+    "4029005e25f51fb8fd8f938a55146ad680d3717690": {
+      "workers": {
+        "app/field/page": {
+          "moduleId": 88804,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/field.ts",
+      "exportedName": "completeJob"
+    },
+    "40849a7d565ab32f30a75a2c38a84196add5cad76c": {
+      "workers": {
+        "app/field/page": {
+          "moduleId": 88804,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/field.ts",
+      "exportedName": "pauseJob"
+    },
+    "407fd63cf1bf568f5c28091699e056bbe3356953a4": {
+      "workers": {
+        "app/field/page": {
+          "moduleId": 88804,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/field.ts",
+      "exportedName": "reportConditions"
+    },
+    "40bafe4c1815a2c87e8c4ac9e1708cd53caf295fb7": {
+      "workers": {
+        "app/field/page": {
+          "moduleId": 88804,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "filename": "src/app/actions/field.ts",
+      "exportedName": "startJob"
+    }
+  },
+  "edge": {},
+  "encryptionKey": "Ap/5WweuCKviptye3dBJBhpdLiBBib9103g09Go7tz8="
+}

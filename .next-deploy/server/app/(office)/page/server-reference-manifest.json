@@ -1,0 +1,27 @@
+{
+  "node": {
+    "0083363619d027391fd48ef0a3f08ac0c887729bb7": {
+      "workers": {
+        "app/(office)/page": {
+          "moduleId": 60611,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "signOut",
+      "filename": "src/app/actions/session.ts"
+    },
+    "4043e90f8c9568ec2f5884ad2046c06e23b5b6f5e3": {
+      "workers": {
+        "app/(office)/page": {
+          "moduleId": 60611,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "signInAs",
+      "filename": "src/app/actions/session.ts"
+    }
+  },
+  "edge": {}
+}
