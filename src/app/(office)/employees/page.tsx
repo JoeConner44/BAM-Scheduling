@@ -1,15 +1,21 @@
 import Link from "next/link";
 import clsx from "clsx";
-import { markSickToday } from "@/app/actions/resources";
+import { addOfficeUser, addSkill, markSickToday, setOfficeUserActive } from "@/app/actions/resources";
 import { OFFICE, requireUser } from "@/lib/auth";
+import { ROLE_LABEL } from "@/lib/labels";
 import { db } from "@/lib/db";
 import { EMPLOYEE_STATUS_COLOR, EMPLOYEE_STATUS_LABEL } from "@/lib/labels";
 import { addDays, dateToDay, dayOfWeek, dayRange, dayToDate, fmtDay, fmtMinShort, fmtRange, today } from "@/lib/time";
 
 export const metadata = { title: "People · BAM Scheduling" };
 
-export default async function EmployeesPage() {
-  await requireUser(OFFICE);
+export default async function EmployeesPage({ searchParams }: PageProps<"/employees">) {
+  const me = await requireUser(OFFICE);
+  const welcome = (await searchParams).welcome === "1";
+  const [officeUsers, skills] = await Promise.all([
+    db.user.findMany({ where: { role: { in: ["OWNER", "DISPATCHER"] } }, orderBy: [{ active: "desc" }, { name: "asc" }] }),
+    db.skill.findMany({ orderBy: { name: "asc" } }),
+  ]);
   const t = today();
   const days = dayRange(t, 7).filter((d) => dayOfWeek(d) !== 0);
   const employees = await db.employee.findMany({
@@ -35,6 +41,31 @@ export default async function EmployeesPage() {
           + Add person
         </Link>
       </div>
+
+      {welcome && (
+        <section className="card border-l-8 border-emerald-500 p-4">
+          <h2 className="text-lg font-bold">✅ Sample data removed. You&apos;re starting fresh.</h2>
+          <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm">
+            <li>
+              <b>Add your crew</b> with <b>+ Add person</b>. Each person automatically gets a phone login.
+            </li>
+            <li>
+              <b>Add office logins</b> (dispatchers) below.
+            </li>
+            <li>
+              <b>Add equipment</b> on the <Link href="/equipment" className="font-semibold text-blue-700 underline">Equipment</Link> page (trucks, trailers, machines).
+            </li>
+            <li>
+              <b>Add jobs</b> with <b>+ New project</b> (top right). Each new city becomes a location filter automatically.
+            </li>
+            <li>
+              <b>Schedule</b> by dragging jobs onto the <Link href="/board" className="font-semibold text-blue-700 underline">Schedule</Link> board.
+            </li>
+          </ol>
+        </section>
+      )}
+
+      {employees.length === 0 && <p className="card p-6 text-center text-slate-500">No people yet. Click <b>+ Add person</b> to add your first crew member.</p>}
 
       <div className="grid gap-3 lg:grid-cols-2">
         {employees.map((e) => {
@@ -112,6 +143,55 @@ export default async function EmployeesPage() {
             </div>
           );
         })}
+      </div>
+      <div className="grid gap-3 lg:grid-cols-2">
+        <section className="card p-4">
+          <h2 className="font-bold">🔑 Office logins</h2>
+          <p className="mb-2 text-xs text-slate-500">Owners and dispatchers who use the office screens. Crew members get their phone login when you add them above.</p>
+          <ul className="divide-y divide-slate-100 text-sm">
+            {officeUsers.map((u) => (
+              <li key={u.id} className={clsx("flex items-center justify-between gap-2 py-1.5", !u.active && "opacity-50")}>
+                <span>
+                  <b>{u.name}</b> <span className="chip bg-slate-100 text-slate-700">{ROLE_LABEL[u.role]}</span>
+                  {u.id === me.id && <span className="ml-1 text-xs text-slate-500">(you)</span>}
+                </span>
+                {me.role === "OWNER" && u.id !== me.id && (
+                  <form action={setOfficeUserActive}>
+                    <input type="hidden" name="id" value={u.id} />
+                    <input type="hidden" name="active" value={u.active ? "" : "on"} />
+                    <button className="text-xs font-semibold text-blue-700 hover:underline">{u.active ? "Turn off" : "Turn back on"}</button>
+                  </form>
+                )}
+              </li>
+            ))}
+          </ul>
+          {me.role === "OWNER" && (
+            <form action={addOfficeUser} className="mt-3 flex flex-wrap gap-2">
+              <input name="name" className="input max-w-xs flex-1" placeholder="Name" required />
+              <select name="role" className="input w-auto" defaultValue="DISPATCHER">
+                <option value="DISPATCHER">Dispatcher</option>
+                <option value="OWNER">Owner</option>
+              </select>
+              <button className="btn-secondary">Add login</button>
+            </form>
+          )}
+        </section>
+
+        <section className="card p-4">
+          <h2 className="font-bold">🎓 Skills &amp; certifications</h2>
+          <p className="mb-2 text-xs text-slate-500">The list you pick from on each person and each project.</p>
+          <div className="flex flex-wrap gap-1.5">
+            {skills.map((s) => (
+              <span key={s.id} className="chip bg-slate-100 px-2.5 py-1 text-sm text-slate-700">
+                {s.name}
+              </span>
+            ))}
+          </div>
+          <form action={addSkill} className="mt-3 flex gap-2">
+            <input name="name" className="input max-w-xs flex-1" placeholder="New skill, e.g. Pressure Washing" required />
+            <button className="btn-secondary">Add skill</button>
+          </form>
+        </section>
       </div>
     </main>
   );
