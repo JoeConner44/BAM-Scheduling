@@ -1,6 +1,9 @@
 // `npm run db:seed` — replace everything with the fictional sample data (spec §26).
 import { PrismaClient } from "@prisma/client";
+import { resolveDatabaseEnv } from "../src/lib/db-env";
 import { loadSampleData } from "./sample-data";
+
+resolveDatabaseEnv();
 
 const db = new PrismaClient();
 

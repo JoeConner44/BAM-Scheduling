@@ -17,14 +17,22 @@ It takes about 10 minutes, and you only do it once. After that, every change pus
    |---|---|
    | `SITE_PASSWORD` | Any code you choose, e.g. `stripes2026`. Everyone enters it once on the sign-in page. |
 
+   This is the app's own access code, so it works on the free plan. It isn't Vercel's "Password Protection" feature, which is Pro only. You can also add it later under **Settings → Environment Variables**, followed by a **Redeploy**.
+
 5. Click **Deploy**. **This first deploy is expected to fail** with "No database connected". That's fine, because the database gets added in the next step.
 
 ## 2. Add the database (Neon)
 
 1. In the new project, open the **Storage** tab.
 2. Click **Create Database** (or **Browse Marketplace**), choose **Neon (Serverless Postgres)** and click **Continue**.
-3. Accept the defaults: the free plan, and a region near you, such as **US East (Washington, D.C.)**. Click **Create**, then **Connect** it to the bam-scheduling project for all environments.
-4. This fills in `DATABASE_URL` and `DATABASE_URL_UNPOOLED` for you. You can check under **Settings → Environment Variables**.
+3. Accept the defaults: the free plan, and a region near you, such as **US East (Washington, D.C.)**. Click **Create**.
+4. On the **Connect a Project** screen:
+   - **Project:** `bam-scheduling`
+   - **Environments:** Production, Preview (the default is fine)
+   - **Create database branch for deployment:** leave both boxes **unchecked**
+   - **Custom Prefix:** type `DATABASE`. The default, `STORAGE`, also works because the app finds the connection either way, but `DATABASE` is the standard name.
+   - Click **Connect**.
+5. This adds the database connection settings (`DATABASE_URL` and friends). You can check under **Settings → Environment Variables**.
 
 ## 3. Deploy again
 

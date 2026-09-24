@@ -1,0 +1,22 @@
+{
+  "/(office)/activity/page": "/activity",
+  "/(office)/board/page": "/board",
+  "/(office)/employees/[id]/page": "/employees/[id]",
+  "/(office)/employees/new/page": "/employees/new",
+  "/(office)/employees/page": "/employees",
+  "/(office)/equipment/[id]/page": "/equipment/[id]",
+  "/(office)/equipment/new/page": "/equipment/new",
+  "/(office)/equipment/page": "/equipment",
+  "/(office)/page": "/",
+  "/(office)/projects/[id]/edit/page": "/projects/[id]/edit",
+  "/(office)/projects/[id]/page": "/projects/[id]",
+  "/(office)/projects/new/page": "/projects/new",
+  "/(office)/todo/page": "/todo",
+  "/(office)/weather/page": "/weather",
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/api/photos/[key]/route": "/api/photos/[key]",
+  "/favicon.ico/route": "/favicon.ico",
+  "/field/page": "/field",
+  "/login/page": "/login"
+}

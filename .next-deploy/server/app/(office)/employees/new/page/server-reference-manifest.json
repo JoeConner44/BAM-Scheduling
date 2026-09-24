@@ -1,0 +1,49 @@
+{
+  "node": {
+    "0083363619d027391fd48ef0a3f08ac0c887729bb7": {
+      "workers": {
+        "app/(office)/employees/new/page": {
+          "moduleId": 20457,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "signOut",
+      "filename": "src/app/actions/session.ts"
+    },
+    "4043e90f8c9568ec2f5884ad2046c06e23b5b6f5e3": {
+      "workers": {
+        "app/(office)/employees/new/page": {
+          "moduleId": 20457,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "signInAs",
+      "filename": "src/app/actions/session.ts"
+    },
+    "604cc0708ac99859b5fe38e71ce7a3d7c69af3aaf7": {
+      "workers": {
+        "app/(office)/employees/new/page": {
+          "moduleId": 20457,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "addTimeOff",
+      "filename": "src/app/actions/resources.ts"
+    },
+    "60d6158d2613c199009239ebe41d0be462c7db8a52": {
+      "workers": {
+        "app/(office)/employees/new/page": {
+          "moduleId": 20457,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "saveEmployee",
+      "filename": "src/app/actions/resources.ts"
+    }
+  },
+  "edge": {}
+}

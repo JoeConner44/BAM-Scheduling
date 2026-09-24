@@ -1,0 +1,104 @@
+{
+  "node": {
+    "0083363619d027391fd48ef0a3f08ac0c887729bb7": {
+      "workers": {
+        "app/(office)/equipment/[id]/page": {
+          "moduleId": 28626,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "signOut",
+      "filename": "src/app/actions/session.ts"
+    },
+    "4043e90f8c9568ec2f5884ad2046c06e23b5b6f5e3": {
+      "workers": {
+        "app/(office)/equipment/[id]/page": {
+          "moduleId": 28626,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "signInAs",
+      "filename": "src/app/actions/session.ts"
+    },
+    "40afc5bcaf6a49e8458840ae4d65e0d6f13038c81f": {
+      "workers": {
+        "app/(office)/equipment/[id]/page": {
+          "moduleId": 28626,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "addDowntime",
+      "filename": "src/app/actions/resources.ts"
+    },
+    "40c7afbe0ca2c2ce5d9f6b7f877de13b7acb3e008c": {
+      "workers": {
+        "app/(office)/equipment/[id]/page": {
+          "moduleId": 28626,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "markSickToday",
+      "filename": "src/app/actions/resources.ts"
+    },
+    "40ed49c8eaf63c08c5c0a7936f0a5815ecea9ef40a": {
+      "workers": {
+        "app/(office)/equipment/[id]/page": {
+          "moduleId": 28626,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "deleteTimeOff",
+      "filename": "src/app/actions/resources.ts"
+    },
+    "40f17dc1df38327a81fdaa4990061b14b6d7594118": {
+      "workers": {
+        "app/(office)/equipment/[id]/page": {
+          "moduleId": 28626,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "deleteDowntime",
+      "filename": "src/app/actions/resources.ts"
+    },
+    "6001e9bd2adeea963348107687d5d4eba51930ff93": {
+      "workers": {
+        "app/(office)/equipment/[id]/page": {
+          "moduleId": 28626,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "saveEquipment",
+      "filename": "src/app/actions/resources.ts"
+    },
+    "604cc0708ac99859b5fe38e71ce7a3d7c69af3aaf7": {
+      "workers": {
+        "app/(office)/equipment/[id]/page": {
+          "moduleId": 28626,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "addTimeOff",
+      "filename": "src/app/actions/resources.ts"
+    },
+    "60d6158d2613c199009239ebe41d0be462c7db8a52": {
+      "workers": {
+        "app/(office)/equipment/[id]/page": {
+          "moduleId": 28626,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "saveEmployee",
+      "filename": "src/app/actions/resources.ts"
+    }
+  },
+  "edge": {}
+}

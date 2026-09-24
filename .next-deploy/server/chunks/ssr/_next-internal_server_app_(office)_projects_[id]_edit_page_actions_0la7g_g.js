@@ -1,0 +1,3 @@
+module.exports=[27916,a=>{"use strict";var b=a.i(51817),c=a.i(96484);a.s([],65890),a.i(65890),a.s(["0083363619d027391fd48ef0a3f08ac0c887729bb7",()=>b.signOut,"4043e90f8c9568ec2f5884ad2046c06e23b5b6f5e3",()=>b.signInAs,"60faedc88c091f1e50135fab82f54766e77834b3e5",()=>c.saveProject],27916)}];
+
+//# sourceMappingURL=_next-internal_server_app_%28office%29_projects_%5Bid%5D_edit_page_actions_0la7g_g.js.map

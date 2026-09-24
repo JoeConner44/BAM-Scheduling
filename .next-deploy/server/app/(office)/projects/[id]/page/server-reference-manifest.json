@@ -1,0 +1,82 @@
+{
+  "node": {
+    "0083363619d027391fd48ef0a3f08ac0c887729bb7": {
+      "workers": {
+        "app/(office)/projects/[id]/page": {
+          "moduleId": 57104,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "signOut",
+      "filename": "src/app/actions/session.ts"
+    },
+    "4043e90f8c9568ec2f5884ad2046c06e23b5b6f5e3": {
+      "workers": {
+        "app/(office)/projects/[id]/page": {
+          "moduleId": 57104,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "signInAs",
+      "filename": "src/app/actions/session.ts"
+    },
+    "40369ddad361052a73248f88b2c1add2734b4b06d6": {
+      "workers": {
+        "app/(office)/projects/[id]/page": {
+          "moduleId": 57104,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "addProjectNote",
+      "filename": "src/app/actions/projects.ts"
+    },
+    "403f79f359069b484064daac6fada652e83164254d": {
+      "workers": {
+        "app/(office)/projects/[id]/page": {
+          "moduleId": 57104,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "uploadProjectPhoto",
+      "filename": "src/app/actions/projects.ts"
+    },
+    "406b994d8a26ec3474d8691b68113021950f36c7da": {
+      "workers": {
+        "app/(office)/projects/[id]/page": {
+          "moduleId": 57104,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "deleteProject",
+      "filename": "src/app/actions/projects.ts"
+    },
+    "40e63d1e417a2b83c37871c4559ec4de2f275744e0": {
+      "workers": {
+        "app/(office)/projects/[id]/page": {
+          "moduleId": 57104,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "changeProjectStatus",
+      "filename": "src/app/actions/projects.ts"
+    },
+    "60faedc88c091f1e50135fab82f54766e77834b3e5": {
+      "workers": {
+        "app/(office)/projects/[id]/page": {
+          "moduleId": 57104,
+          "async": false,
+          "codeHash": null
+        }
+      },
+      "exportedName": "saveProject",
+      "filename": "src/app/actions/projects.ts"
+    }
+  },
+  "edge": {}
+}
