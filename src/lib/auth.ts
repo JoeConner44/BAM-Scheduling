@@ -1,5 +1,5 @@
 import "server-only";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Role } from "@prisma/client";
@@ -9,7 +9,34 @@ import { db } from "./db";
 // in a cookie. Phase 2 replaces the picker with password (office) and phone + PIN (field).
 
 const COOKIE = "bam_session";
-const SECRET = process.env.AUTH_SECRET ?? "dev-only-secret-change-me";
+// AUTH_SECRET if set; otherwise derived from the database URL, which is always present and
+// always secret, so a fresh deploy is safe without extra setup.
+const SECRET = process.env.AUTH_SECRET || createHash("sha256").update(`bam-session:${process.env.DATABASE_URL ?? "dev"}`).digest("hex");
+
+/** Optional shared access code for a public demo link (SITE_PASSWORD). */
+export const siteCodeRequired = () => !!process.env.SITE_PASSWORD;
+
+const SITE_COOKIE = "bam_site";
+const siteToken = () => sign(`site:${process.env.SITE_PASSWORD ?? ""}`);
+
+/** True when no code is configured, or this browser already entered it. */
+export async function siteCodeRemembered() {
+  if (!siteCodeRequired()) return true;
+  return (await cookies()).get(SITE_COOKIE)?.value === siteToken();
+}
+
+export async function rememberSiteCode() {
+  if (!siteCodeRequired()) return;
+  (await cookies()).set(SITE_COOKIE, siteToken(), { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 90 });
+}
+
+export function siteCodeMatches(given: string) {
+  const expected = process.env.SITE_PASSWORD;
+  if (!expected) return true;
+  const a = createHash("sha256").update(given.trim()).digest();
+  const b = createHash("sha256").update(expected.trim()).digest();
+  return timingSafeEqual(a, b);
+}
 
 function sign(value: string) {
   return createHmac("sha256", SECRET).update(value).digest("base64url");

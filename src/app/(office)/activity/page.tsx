@@ -1,4 +1,6 @@
 import clsx from "clsx";
+import { demoResetAllowed, resetSampleData } from "@/app/actions/demo";
+import { ConfirmButton } from "@/components/ConfirmButton";
 import { OFFICE, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { ROLE_LABEL } from "@/lib/labels";
@@ -8,8 +10,9 @@ import type { Finding } from "@/lib/engine/types";
 export const metadata = { title: "Activity · BAM Scheduling" };
 
 export default async function ActivityPage({ searchParams }: PageProps<"/activity">) {
-  await requireUser(OFFICE);
+  const user = await requireUser(OFFICE);
   const sp = await searchParams;
+  const canReset = user.role === "OWNER" && (await demoResetAllowed());
   const onlyOverrides = sp.filter === "overrides";
   const [entries, overrides] = await Promise.all([
     db.auditLog.findMany({ include: { actor: true }, orderBy: { at: "desc" }, take: 200, where: onlyOverrides ? { summary: { contains: "(override)" } } : undefined }),
@@ -40,6 +43,14 @@ export default async function ActivityPage({ searchParams }: PageProps<"/activit
           </a>
         </div>
       </div>
+      {canReset && (
+        <form action={resetSampleData} className="card flex flex-wrap items-center justify-between gap-2 border-dashed p-3 text-sm">
+          <span className="text-slate-600">Demo site: reload the fictional sample data with dates starting today. This erases every change.</span>
+          <ConfirmButton className="btn-secondary text-red-700" message="Erase everything and reload the sample data? Everyone will need to sign in again.">
+            ↺ Reset sample data
+          </ConfirmButton>
+        </form>
+      )}
       {[...groups.entries()].map(([day, list]) => (
         <section key={day}>
           <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-500">{day}</h2>

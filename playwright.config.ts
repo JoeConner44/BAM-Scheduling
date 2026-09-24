@@ -4,6 +4,7 @@ import { defineConfig } from "@playwright/test";
 // database (bam_test) and pin "today" to a Thursday so dates are predictable.
 export const TEST_ENV = {
   DATABASE_URL: process.env.TEST_DATABASE_URL ?? "postgresql://bam:bam@localhost:5432/bam_test?schema=public",
+  DATABASE_URL_UNPOOLED: process.env.TEST_DATABASE_URL ?? "postgresql://bam:bam@localhost:5432/bam_test?schema=public",
   BAM_TODAY: "2026-09-24",
 };
 const PORT = 3100;

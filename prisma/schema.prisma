@@ -13,8 +13,10 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  /// Direct (non-pooled) connection for migrations. Hosted Postgres like Neon pools DATABASE_URL.
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 // ───────────────────────────── Enums ─────────────────────────────
@@ -543,4 +545,16 @@ model WeatherForecast {
   fetchedAt    DateTime @default(now())
 
   @@unique([locationId, day])
+}
+
+// ───────────────────────────── Files ─────────────────────────────
+
+/// Uploaded photos. Kept in the database so the app runs on hosts without a writable disk.
+/// Can move to S3-compatible storage later without changing ProjectPhoto.
+model StoredFile {
+  key         String   @id
+  contentType String
+  size        Int
+  data        Bytes
+  createdAt   DateTime @default(now())
 }

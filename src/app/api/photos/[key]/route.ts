@@ -6,5 +6,5 @@ export async function GET(_req: Request, ctx: RouteContext<"/api/photos/[key]">)
   const { key } = await ctx.params;
   const photo = await readPhoto(key);
   if (!photo) return new Response("Not found", { status: 404 });
-  return new Response(new Uint8Array(photo.body), { headers: { "Content-Type": photo.type, "Cache-Control": "private, max-age=86400" } });
+  return new Response(photo.body as BodyInit, { headers: { "Content-Type": photo.type, "Cache-Control": "private, max-age=86400" } });
 }

@@ -1,10 +1,13 @@
 import { signInAs } from "@/app/actions/session";
+import { siteCodeRemembered } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { ROLE_LABEL } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
-export default async function LoginPage() {
+export default async function LoginPage({ searchParams }: PageProps<"/login">) {
+  const sp = await searchParams;
+  const needCode = !(await siteCodeRemembered());
   const users = await db.user.findMany({ where: { active: true }, include: { employee: true }, orderBy: [{ role: "asc" }, { name: "asc" }] });
   const office = users.filter((u) => u.role !== "FIELD");
   const field = users.filter((u) => u.role === "FIELD");
@@ -17,35 +20,41 @@ export default async function LoginPage() {
         <p className="text-sm text-slate-500">Prototype sign-in: pick who you are.</p>
       </div>
 
-      <section className="card p-4">
-        <h2 className="label">Office</h2>
-        <div className="grid gap-2">
-          {office.map((u) => (
-            <form key={u.id} action={signInAs}>
-              <input type="hidden" name="userId" value={u.id} />
-              <button className="btn-secondary w-full justify-between py-3 text-base">
+      <form action={signInAs} className="space-y-6">
+        {needCode && (
+          <section className="card p-4">
+            <label className="label" htmlFor="siteCode">
+              Access code
+            </label>
+            <input id="siteCode" name="siteCode" type="password" className="input text-base" autoComplete="current-password" required autoFocus />
+            {sp.error === "code" && <p className="mt-1 text-sm font-semibold text-red-700">That code isn&apos;t right. Try again.</p>}
+          </section>
+        )}
+
+        <section className="card p-4">
+          <h2 className="label">Office</h2>
+          <div className="grid gap-2">
+            {office.map((u) => (
+              <button key={u.id} name="userId" value={u.id} className="btn-secondary w-full justify-between py-3 text-base">
                 <span>{u.name}</span>
                 <span className="chip bg-slate-100 text-slate-700">{ROLE_LABEL[u.role]}</span>
               </button>
-            </form>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
 
-      <section className="card p-4">
-        <h2 className="label">Field crew (phone view)</h2>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {field.map((u) => (
-            <form key={u.id} action={signInAs}>
-              <input type="hidden" name="userId" value={u.id} />
-              <button className="btn-secondary w-full py-3 text-base">
+        <section className="card p-4">
+          <h2 className="label">Field crew (phone view)</h2>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {field.map((u) => (
+              <button key={u.id} name="userId" value={u.id} className="btn-secondary w-full py-3 text-base">
                 <span className="h-3 w-3 rounded-full" style={{ background: u.employee?.color }} />
                 {u.name}
               </button>
-            </form>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      </form>
 
       <p className="text-center text-xs text-slate-400">Passwords (office) and phone + PIN (field) replace this picker in phase 2.</p>
     </main>

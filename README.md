@@ -4,7 +4,7 @@ A visual scheduling and dispatch board for pavement striping, sealcoating, therm
 
 **The schedule is fluid.** Projects, people and equipment are movable pieces. The app shows what's possible, what conflicts and what's at risk. The dispatcher or owner always makes the final call.
 
-See [docs/PLAN.md](docs/PLAN.md) for the full plan and phase status.
+See [docs/PLAN.md](docs/PLAN.md) for the full plan and phase status, and [docs/DEPLOY.md](docs/DEPLOY.md) to put it online (Vercel + Neon, about 10 minutes).
 
 ## What's in phase 1
 
@@ -26,7 +26,7 @@ Requirements: Node 20+ and PostgreSQL 14+.
 
 ```bash
 npm install
-cp .env.example .env          # then set DATABASE_URL
+cp .env.example .env          # then set DATABASE_URL and DATABASE_URL_UNPOOLED
 npx prisma migrate deploy     # create the tables
 npm run db:seed               # load the fictional sample data (dates are relative to today)
 npm run dev                   # http://localhost:3000
