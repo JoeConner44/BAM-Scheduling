@@ -4,7 +4,9 @@ A visual scheduling and dispatch board for pavement striping, sealcoating, therm
 
 **Guiding rule:** the schedule is fluid. The app shows what's possible, what conflicts and what's at risk. The dispatcher or owner makes the final call.
 
-This document is the plan. It gets reviewed before any application code is written.
+This document is the plan. It was reviewed before any application code was written.
+
+> **Status (Sep 24, 2026): Phase 1 is built.** The schema, sample data, conflict engine and all seven screens are working, and the §26 scenarios pass as automated browser tests. See the "Phase 1 — what was built" section at the end of this document.
 
 ---
 
@@ -76,7 +78,7 @@ Every table has `id`, `createdAt`, `updatedAt`. **FK** = foreign key.
 - `EquipmentDowntime`: equipmentId FK, start, end, reason. Scheduled maintenance, so availability is date-aware and not just a status flag.
 
 **Scheduling**
-- `ScheduleBlock`: projectId FK, date, startAt, endAt (timestamptz), **state** (TENTATIVE, COMMITTED), plannedHours, sequence, createdById FK, notes. Field progress: startedAt, pausedAt, completedAt, blockStatus (PLANNED, ACTIVE, PAUSED, DONE, CANNOT_PROCEED).
+- `ScheduleBlock`: projectId FK, **day (DATE) + startMin/endMin (minutes after midnight)**, **state** (TENTATIVE, COMMITTED), createdById FK, notes. Field progress: startedAt, pausedAt, completedAt, actualHours, progress (PLANNED, ACTIVE, PAUSED, DONE, CANNOT_PROCEED). *(Changed from timestamptz during the build. The company works in one time zone, so a local day plus minutes keeps overlap math exact and avoids daylight-saving surprises.)*
 - `Assignment`: blockId FK, employeeId FK, isLead. Unique (blockId, employeeId).
 - `EquipmentAssignment`: blockId FK, equipmentId FK. Unique (blockId, equipmentId).
 - `SchedulingOverride`: actorId FK, blockId FK, action (MOVE, ASSIGN_EMPLOYEE, ASSIGN_EQUIPMENT, COMMIT…), **conflicts** (JSON snapshot of every warning shown), reason, at
@@ -262,3 +264,38 @@ Login and roles · full CRUD · block create/move/resize/assign with server-side
 6. **Hosting**: to be decided. Built to run anywhere Node and Postgres run (e.g. Vercel + Neon, or a single VPS).
 
 Next step after approval: Phase 1, the scaffold, schema, seed and clickable prototype of the 7 screens.
+
+---
+
+## Phase 1 — what was built
+
+- **Stack.** Next.js 16 (App Router, server actions), TypeScript, Tailwind 4, PostgreSQL 16 with Prisma 6, dnd-kit, Vitest and Playwright.
+- **Schema.** `prisma/schema.prisma` has 25 tables. Double-booking is enforced in the app, not by the database, so owner overrides stay possible. Every override is stored in `SchedulingOverride` along with the exact warnings that were shown.
+- **Conflict engine.** `src/lib/engine`. It checks:
+  - people double-booked
+  - equipment double-booked
+  - time off
+  - equipment out of service or in maintenance
+  - normal hours and work days
+  - long days
+  - travel gaps
+  - deadlines and inspections
+  - earliest date and readiness
+  - weather
+  - crew size, skills and equipment types
+
+  The server runs it before saving every change. `introducedFindings` means the dialog only asks about problems the change *creates*, and describes them from the side of the job being moved.
+- **Board.**
+  - Week view (rolling 6 days) and day view (time axis).
+  - Drag a project card onto a day, a time, or a person. Drag a job onto a person or a truck to assign them. Drag an assignment to another person or unit to reassign it. Drag a job sideways or resize it in day view. Drag it back to TO DO to unschedule it.
+  - A block panel shows availability ("free", "on Kroger", "vacation"), the tentative/committed toggle, and why the block is flagged.
+- **Field screen.** Start, pause and resume. 🚧 Job conditions changed (reason tiles, % complete, hours worked, hours remaining, "can you keep working?", note, photos). Photo, note and "running late". Mark complete, or "some work is left", which is the partial-completion flow.
+- **Tests.** 17 unit tests on the engine. 10 Playwright scenarios covering: move, assign, employee conflict (cancel then override), equipment conflict, fixing a conflict by moving a job, marking someone off, partial completion, an urgent project, a weather change, and field-user permissions.
+
+### Still to do in phase 2 (MVP completion)
+
+- Real sign-in: office password, field phone number + PIN. Sign-in is a user picker for now.
+- Undo for the last change. Bulk "move everything on this day".
+- Travel-time check using a real routing service (now: straight-line × 1.3 at 40 mph). Geocoding of addresses (now: GPS entered by hand, or the city center).
+- Photo storage on S3/R2 for production (now: local `uploads/` folder).
+- Mobile polish for the board itself on small tablets.

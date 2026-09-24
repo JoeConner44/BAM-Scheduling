@@ -1,0 +1,546 @@
+// BAM Scheduling — relational schema.
+//
+// Time model: the company works in one local time zone, so schedule times are stored
+// as a calendar day (DATE) plus minutes-after-midnight (0–1440). This keeps overlap
+// math exact and avoids time-zone drift. Audit timestamps use real timestamps.
+//
+// Double-booking is NOT blocked by the database on purpose: the owner/dispatcher must
+// be able to override. The app blocks it unless an override is confirmed, and every
+// override is recorded in SchedulingOverride.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────────── Enums ─────────────────────────────
+
+enum Role {
+  OWNER
+  DISPATCHER
+  FIELD
+}
+
+enum EmployeeStatus {
+  AVAILABLE
+  ASSIGNED
+  OFF
+  SICK
+  VACATION
+  UNAVAILABLE
+  PARTIAL_DAY
+  DELAYED
+}
+
+enum TimeOffType {
+  OFF
+  SICK
+  VACATION
+  UNAVAILABLE
+}
+
+enum EquipmentType {
+  STRIPING_TRUCK
+  TRAILER
+  THERMO_MACHINE
+  ARROW_BOARD
+  LAYOUT
+  SPECIALTY
+  OTHER
+}
+
+enum EquipmentStatus {
+  AVAILABLE
+  ASSIGNED
+  MAINTENANCE
+  OUT_OF_SERVICE
+}
+
+enum Priority {
+  CRITICAL
+  HIGH
+  NORMAL
+  LOW
+}
+
+enum WeatherSensitivity {
+  NONE
+  LOW
+  HIGH
+}
+
+enum ProjectStatus {
+  TO_DO
+  READY
+  TENTATIVE
+  SCHEDULED
+  IN_PROGRESS
+  DELAYED
+  PARTIALLY_COMPLETE
+  COMPLETE
+  WAITING_ON_CUSTOMER
+  WAITING_ON_CONSTRUCTION
+  WEATHER_DELAY
+  CANCELLED
+}
+
+enum BlockState {
+  TENTATIVE
+  COMMITTED
+}
+
+enum BlockProgress {
+  PLANNED
+  ACTIVE
+  PAUSED
+  DONE
+  CANNOT_PROCEED
+}
+
+enum NoteKind {
+  NOTE
+  CONDITION_REPORT
+  DELAY
+  SYSTEM
+}
+
+enum ConditionReason {
+  CARS_NOT_MOVED
+  CONSTRUCTION_INCOMPLETE
+  SURFACE_NOT_READY
+  LAYOUT_DIFFERENT
+  SCOPE_CHANGED
+  EXTRA_PREP
+  LARGER_THAN_ESTIMATED
+  ACCESS_BLOCKED
+  EQUIPMENT_PROBLEM
+  WEATHER_CHANGED
+  OTHER
+}
+
+enum AvailabilityKind {
+  EXTRA_AVAILABLE
+  PARTIAL_DAY
+}
+
+// ───────────────────────────── Users & people ─────────────────────────────
+
+model User {
+  id           String    @id @default(cuid())
+  name         String
+  email        String?   @unique
+  phone        String?   @unique
+  passwordHash String?
+  pinHash      String?
+  role         Role
+  active       Boolean   @default(true)
+  employeeId   String?   @unique
+  employee     Employee? @relation(fields: [employeeId], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  statusChanges  ProjectStatusHistory[]
+  notes          ProjectNote[]
+  photos         ProjectPhoto[]
+  conditionReps  ConditionReport[]
+  overrides      SchedulingOverride[]
+  auditEntries   AuditLog[]
+  blocksCreated  ScheduleBlock[]
+  timeOffCreated TimeOff[]
+}
+
+model Employee {
+  id             String         @id @default(cuid())
+  name           String
+  phone          String?
+  position       String?
+  color          String         @default("#2563eb")
+  normalStartMin Int            @default(420) // 7:00 AM
+  normalEndMin   Int            @default(930) // 3:30 PM
+  workDays       Int[]          @default([1, 2, 3, 4, 5]) // 0 = Sunday
+  status         EmployeeStatus @default(AVAILABLE)
+  homeLocationId String?
+  homeLocation   Location?      @relation(fields: [homeLocationId], references: [id])
+  active         Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  user         User?
+  skills       EmployeeSkill[]
+  availability Availability[]
+  timeOff      TimeOff[]
+  assignments  Assignment[]
+}
+
+model Skill {
+  id        String                 @id @default(cuid())
+  name      String                 @unique
+  createdAt DateTime               @default(now())
+  employees EmployeeSkill[]
+  projects  ProjectRequiredSkill[]
+}
+
+model EmployeeSkill {
+  employeeId      String
+  skillId         String
+  isCertification Boolean   @default(false)
+  expiresOn       DateTime? @db.Date
+  employee        Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  skill           Skill     @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([employeeId, skillId])
+}
+
+/// Exceptions to an employee's normal hours (e.g. works a Saturday, or only mornings).
+model Availability {
+  id         String           @id @default(cuid())
+  employeeId String
+  employee   Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  day        DateTime         @db.Date
+  startMin   Int
+  endMin     Int
+  kind       AvailabilityKind
+  note       String?
+  createdAt  DateTime         @default(now())
+
+  @@index([employeeId, day])
+}
+
+/// Time off. Whole days when startMin/endMin are null; otherwise a partial day
+/// (the minutes apply to each day in the range).
+model TimeOff {
+  id          String      @id @default(cuid())
+  employeeId  String
+  employee    Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  startDay    DateTime    @db.Date
+  endDay      DateTime    @db.Date
+  startMin    Int?
+  endMin      Int?
+  type        TimeOffType
+  note        String?
+  createdById String?
+  createdBy   User?       @relation(fields: [createdById], references: [id])
+  createdAt   DateTime    @default(now())
+
+  @@index([employeeId, startDay, endDay])
+}
+
+// ───────────────────────────── Customers & locations ─────────────────────────────
+
+model Customer {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  contactName String?
+  phone       String?
+  email       String?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  projects    Project[]
+}
+
+/// Created automatically from project addresses (city + state). Never hard-coded.
+model Location {
+  id        String            @id @default(cuid())
+  city      String
+  state     String
+  lat       Float?
+  lng       Float?
+  createdAt DateTime          @default(now())
+  projects  Project[]
+  employees Employee[]
+  equipment Equipment[]
+  forecasts WeatherForecast[]
+
+  @@unique([city, state])
+}
+
+// ───────────────────────────── Projects ─────────────────────────────
+
+model JobType {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  projects Project[]
+}
+
+model Project {
+  id                     String             @id @default(cuid())
+  code                   String             @unique
+  customerId             String
+  customer               Customer           @relation(fields: [customerId], references: [id])
+  name                   String
+  contactName            String?
+  contactPhone           String?
+  contactEmail           String?
+  street                 String?
+  city                   String
+  state                  String             @default("GA")
+  zip                    String?
+  lat                    Float?
+  lng                    Float?
+  locationId             String?
+  location               Location?          @relation(fields: [locationId], references: [id])
+  jobTypeId              String?
+  jobType                JobType?           @relation(fields: [jobTypeId], references: [id])
+  scope                  String?
+  estTotalHours          Float
+  estCrewSize            Int                @default(2)
+  earliestDate           DateTime?          @db.Date
+  preferredDate          DateTime?          @db.Date
+  deadline               DateTime?          @db.Date
+  inspectionDate         DateTime?          @db.Date
+  priority               Priority           @default(NORMAL)
+  weatherSensitivity     WeatherSensitivity @default(LOW)
+  surfaceReady           Boolean            @default(true)
+  customerReady          Boolean            @default(true)
+  status                 ProjectStatus      @default(TO_DO)
+  percentComplete        Int                @default(0)
+  actualHours            Float              @default(0)
+  /// Set when the field crew reports "need about N more hours". Null = estimate − actual.
+  remainingHoursOverride Float?
+  notes                  String?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  requiredSkills    ProjectRequiredSkill[]
+  requiredEquipment ProjectRequiredEquipment[]
+  blocks            ScheduleBlock[]
+  statusHistory     ProjectStatusHistory[]
+  projectNotes      ProjectNote[]
+  photos            ProjectPhoto[]
+  conditionReports  ConditionReport[]
+
+  @@index([status])
+  @@index([locationId])
+}
+
+model ProjectRequiredSkill {
+  projectId String
+  skillId   String
+  minCount  Int     @default(1)
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  skill     Skill   @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, skillId])
+}
+
+/// A project needs a *type* of equipment; the specific unit is chosen per schedule block.
+model ProjectRequiredEquipment {
+  projectId String
+  type      EquipmentType
+  quantity  Int           @default(1)
+  project   Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, type])
+}
+
+model ProjectStatusHistory {
+  id          String         @id @default(cuid())
+  projectId   String
+  project     Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fromStatus  ProjectStatus?
+  toStatus    ProjectStatus
+  changedById String?
+  changedBy   User?          @relation(fields: [changedById], references: [id])
+  reason      String?
+  at          DateTime       @default(now())
+
+  @@index([projectId, at])
+}
+
+model ProjectNote {
+  id        String         @id @default(cuid())
+  projectId String
+  project   Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  blockId   String?
+  block     ScheduleBlock? @relation(fields: [blockId], references: [id], onDelete: SetNull)
+  authorId  String?
+  author    User?          @relation(fields: [authorId], references: [id])
+  kind      NoteKind       @default(NOTE)
+  body      String
+  at        DateTime       @default(now())
+
+  @@index([projectId, at])
+}
+
+model ProjectPhoto {
+  id           String         @id @default(cuid())
+  projectId    String
+  project      Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  blockId      String?
+  block        ScheduleBlock? @relation(fields: [blockId], references: [id], onDelete: SetNull)
+  uploadedById String?
+  uploadedBy   User?          @relation(fields: [uploadedById], references: [id])
+  fileKey      String
+  caption      String?
+  takenAt      DateTime       @default(now())
+
+  @@index([projectId])
+}
+
+model ConditionReport {
+  id              String          @id @default(cuid())
+  projectId       String
+  project         Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  blockId         String?
+  block           ScheduleBlock?  @relation(fields: [blockId], references: [id], onDelete: SetNull)
+  reportedById    String?
+  reportedBy      User?           @relation(fields: [reportedById], references: [id])
+  reason          ConditionReason
+  percentComplete Int?
+  hoursWorked     Float?
+  remainingHours  Float?
+  canProceed      Boolean         @default(true)
+  note            String?
+  at              DateTime        @default(now())
+
+  @@index([projectId, at])
+}
+
+// ───────────────────────────── Equipment ─────────────────────────────
+
+model Equipment {
+  id                String                @id @default(cuid())
+  unitCode          String                @unique
+  name              String
+  type              EquipmentType
+  status            EquipmentStatus       @default(AVAILABLE)
+  maintenanceNote   String?
+  currentLocationId String?
+  currentLocation   Location?             @relation(fields: [currentLocationId], references: [id])
+  color             String                @default("#475569")
+  active            Boolean               @default(true)
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  downtime          EquipmentDowntime[]
+  assignments       EquipmentAssignment[]
+}
+
+/// Planned maintenance / out-of-service windows, so availability is date-aware.
+model EquipmentDowntime {
+  id          String    @id @default(cuid())
+  equipmentId String
+  equipment   Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  startDay    DateTime  @db.Date
+  endDay      DateTime  @db.Date
+  reason      String?
+  createdAt   DateTime  @default(now())
+
+  @@index([equipmentId, startDay, endDay])
+}
+
+// ───────────────────────────── Scheduling ─────────────────────────────
+
+/// One piece of a project's time on the board. A project can have many blocks
+/// (multi-day jobs, return trips, remaining work after a partial completion).
+model ScheduleBlock {
+  id          String        @id @default(cuid())
+  projectId   String
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  day         DateTime      @db.Date
+  startMin    Int
+  endMin      Int
+  state       BlockState    @default(TENTATIVE)
+  progress    BlockProgress @default(PLANNED)
+  startedAt   DateTime?
+  pausedAt    DateTime?
+  completedAt DateTime?
+  /// Hours the crew reports working on this visit (latest figure; adds to Project.actualHours).
+  actualHours Float?
+  notes       String?
+  createdById String?
+  createdBy   User?         @relation(fields: [createdById], references: [id])
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  assignments          Assignment[]
+  equipmentAssignments EquipmentAssignment[]
+  overrides            SchedulingOverride[]
+  notesList            ProjectNote[]
+  photos               ProjectPhoto[]
+  conditionReports     ConditionReport[]
+
+  @@index([day])
+  @@index([projectId])
+}
+
+/// One employee on one schedule block.
+model Assignment {
+  id         String        @id @default(cuid())
+  blockId    String
+  block      ScheduleBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  employeeId String
+  employee   Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  isLead     Boolean       @default(false)
+  createdAt  DateTime      @default(now())
+
+  @@unique([blockId, employeeId])
+  @@index([employeeId])
+}
+
+/// One piece of equipment on one schedule block.
+model EquipmentAssignment {
+  id          String        @id @default(cuid())
+  blockId     String
+  block       ScheduleBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  equipmentId String
+  equipment   Equipment     @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  createdAt   DateTime      @default(now())
+
+  @@unique([blockId, equipmentId])
+  @@index([equipmentId])
+}
+
+/// Recorded every time someone proceeds despite conflicts/warnings.
+model SchedulingOverride {
+  id       String         @id @default(cuid())
+  actorId  String?
+  actor    User?          @relation(fields: [actorId], references: [id])
+  blockId  String?
+  block    ScheduleBlock? @relation(fields: [blockId], references: [id], onDelete: SetNull)
+  action   String
+  /// Snapshot of the findings that were shown when the user chose to proceed.
+  findings Json
+  reason   String?
+  at       DateTime       @default(now())
+}
+
+/// General audit trail: who changed what, before/after, and why.
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id])
+  entityType String
+  entityId   String
+  action     String
+  summary    String
+  before     Json?
+  after      Json?
+  reason     String?
+  at         DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([at])
+}
+
+// ───────────────────────────── Weather ─────────────────────────────
+
+model WeatherForecast {
+  id           String   @id @default(cuid())
+  locationId   String
+  location     Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  day          DateTime @db.Date
+  precipChance Int // 0–100
+  tempHighF    Int?
+  tempLowF     Int?
+  windMph      Int?
+  summary      String?
+  source       String   @default("manual")
+  fetchedAt    DateTime @default(now())
+
+  @@unique([locationId, day])
+}
