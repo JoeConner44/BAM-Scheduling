@@ -2,7 +2,11 @@ import Link from "next/link";
 import clsx from "clsx";
 import { FINDING_ICON } from "@/components/board/ConflictDialog";
 import { weatherIcon } from "@/components/board/WeatherBadge";
+import { after } from "next/server";
 import { demoToolsAllowed } from "@/app/actions/demo";
+import { Inbox } from "@/components/Inbox";
+import { replan } from "@/lib/planner/run";
+import { refreshWeatherAndReplan } from "@/lib/weather/refresh";
 import { OFFICE, requireUser } from "@/lib/auth";
 import { loadSnapshot, openProjects, toCard } from "@/lib/data";
 import { db } from "@/lib/db";
@@ -16,6 +20,9 @@ export const metadata = { title: "Dashboard · BAM Scheduling" };
 export default async function Dashboard() {
   const user = await requireUser(OFFICE);
   const sampleMode = user.role === "OWNER" && (await demoToolsAllowed());
+  // First visit ever: build the schedule now. After that, keep weather fresh in the background.
+  if (!(await db.planRun.count()) && !(await db.alert.count())) await replan("first look");
+  after(() => refreshWeatherAndReplan());
   const t = today();
   const horizon = addDays(t, 14);
 
@@ -45,7 +52,7 @@ export default async function Dashboard() {
 
   const conflicts = upcoming.flatMap((b) => (findings[b.id] ?? []).filter((f) => f.severity === "conflict").map((f) => ({ f, b })));
   const dedupedConflicts = conflicts.filter((c, i) => conflicts.findIndex((x) => x.f.dedupeKey === c.f.dedupeKey) === i);
-  const weatherRisks = upcoming.flatMap((b) => (findings[b.id] ?? []).filter((f) => f.code === "WEATHER").map((f) => ({ f, b })));
+  const weatherRisks = upcoming.flatMap((b) => (findings[b.id] ?? []).filter((f) => f.code.startsWith("WEATHER")).map((f) => ({ f, b })));
 
   const busyToday = new Set(todaysBlocks.filter(isLive).flatMap((b) => b.assignments.map((a) => a.employeeId)));
   const eqBusyToday = new Set(todaysBlocks.filter(isLive).flatMap((b) => b.equipmentAssignments.map((a) => a.equipmentId)));
@@ -68,7 +75,8 @@ export default async function Dashboard() {
           🧪 You&apos;re looking at <b>sample data</b>. When you&apos;re ready for real jobs and real people, go to <b>Activity → Start using real data</b>.
         </Link>
       )}
-      <div className="flex flex-wrap items-end justify-between gap-2">
+      <Inbox />
+      <div className="flex flex-wrap items-end justify-between gap-2 border-t border-slate-300 pt-6">
         <div>
           <h1 className="text-2xl font-bold">Today · {fmtDayLong(t)}</h1>
           <p className="text-sm text-slate-500">What&apos;s happening, what&apos;s possible, and what&apos;s at risk.</p>
@@ -264,7 +272,7 @@ export default async function Dashboard() {
                 </li>
               ))}
             </ul>
-            <p className="mt-2 text-xs text-slate-500">Weather never moves anything by itself. You decide what to move.</p>
+            <p className="mt-2 text-xs text-slate-500">The app moves jobs it placed itself; jobs that are locked in only get an alert, and you decide.</p>
           </div>
         </div>
       </section>

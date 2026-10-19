@@ -12,6 +12,7 @@ function project(id: string, over: Partial<EProject> = {}): EProject {
     label: `${id} — Athens`,
     city: "Athens",
     locationId: "loc-athens",
+    jobTypeId: null,
     ...ATHENS,
     deadline: null,
     inspectionDate: null,
@@ -183,6 +184,15 @@ describe("dates, readiness, weather, staffing", () => {
   it("warns about weather for sensitive jobs only", () => {
     const tue = block("t", "kroger", 480, 600, { day: "2026-09-29" });
     expect(checkBlock(tue, snapshot([tue])).find((f) => f.code === "WEATHER")?.message).toContain("70% chance of rain in Athens on Tue 9/29");
+    // With hourly data and limits, the check looks at the actual work hours.
+    const hourly = snapshot([tue]);
+    hourly.weatherRules = { default: { minTempF: 50, maxRainChance: 40, dryHoursAfter: 2, maxWindMph: 25 }, byJobType: {} };
+    hourly.weatherHours = {
+      "loc-athens": Array.from({ length: 24 }, (_, hour) => ({ day: "2026-09-29", hour, tempF: hour < 9 ? 44 : 60, precipChance: hour >= 18 ? 80 : 0, windMph: 5 })),
+    };
+    const fs = checkBlock(tue, hourly); // 8–10 AM: cold at 8, rain only in the evening
+    expect(fs.map((f) => f.code).filter((c) => c.startsWith("WEATHER"))).toEqual(["WEATHER_COLD"]);
+    expect(fs.find((f) => f.code === "WEATHER_COLD")?.message).toBe("Athens on Tue 9/29: 44°F at 8:00 AM (limit 50°F).");
     const insensitive = snapshot([tue], [project("kroger", { weatherSensitivity: "NONE" })]);
     expect(checkBlock(tue, insensitive).some((f) => f.code === "WEATHER")).toBe(false);
   });

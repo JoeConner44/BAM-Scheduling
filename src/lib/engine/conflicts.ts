@@ -4,6 +4,7 @@
 
 import { estimateTravelMinutes } from "../geo";
 import { dayOfWeek, fmtDay, fmtRange, fmtMin } from "../time";
+import { checkWindow, indexHours, ruleFor } from "../weather/rules";
 import type { EBlock, Finding, FindingCode, Severity, Snapshot } from "./types";
 
 export const DEFAULT_SETTINGS = {
@@ -249,21 +250,33 @@ export function checkBlock(block: EBlock, snap: Snapshot): Finding[] {
     out.push(finding(block, "NOT_READY", "warning", "Project not ready", `${label}: ${notReady.join(", ")}.`, "Readiness"));
   }
 
-  // ── Weather ──
+  // ── Weather: hourly forecast against the limits for this type of work ──
   if (project.weatherSensitivity !== "NONE" && project.locationId) {
-    const fc = snap.forecasts.find((f) => f.locationId === project.locationId && f.day === block.day);
-    const threshold = snap.settings.weatherThreshold[project.weatherSensitivity];
-    if (fc && fc.precipChance >= threshold) {
-      out.push(
-        finding(
-          block,
-          "WEATHER",
-          "warning",
-          "Weather risk",
-          `${fc.precipChance}% chance of rain in ${project.city} on ${fmtDay(block.day)}${fc.summary ? ` (${fc.summary})` : ""}.`,
-          `Weather ${project.city}`,
-        ),
-      );
+    const rule = snap.weatherRules ? ruleFor(snap.weatherRules, project.jobTypeId) : null;
+    const hours = snap.weatherHours?.[project.locationId];
+    const check = rule && hours?.length ? checkWindow(indexHours(hours), block.day, block.startMin, block.endMin, rule) : null;
+    if (check?.known) {
+      for (const p of check.problems) {
+        const code = p.kind === "RAIN" ? "WEATHER" : p.kind === "COLD" ? "WEATHER_COLD" : "WEATHER_WIND";
+        const title = p.kind === "RAIN" ? "Rain risk" : p.kind === "COLD" ? "Too cold" : "Too windy";
+        out.push(finding(block, code, "warning", title, `${project.city} on ${fmtDay(block.day)}: ${p.message}.`, `Weather ${project.city}`));
+      }
+    } else {
+      // No hourly data that far out: fall back to the daily rain chance, if any.
+      const fc = snap.forecasts.find((f) => f.locationId === project.locationId && f.day === block.day);
+      const threshold = rule?.maxRainChance ?? snap.settings.weatherThreshold[project.weatherSensitivity];
+      if (fc && fc.precipChance >= threshold) {
+        out.push(
+          finding(
+            block,
+            "WEATHER",
+            "warning",
+            "Rain risk",
+            `${fc.precipChance}% chance of rain in ${project.city} on ${fmtDay(block.day)}${fc.summary ? ` (${fc.summary})` : ""}.`,
+            `Weather ${project.city}`,
+          ),
+        );
+      }
     }
   }
 

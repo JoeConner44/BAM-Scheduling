@@ -3,9 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { authorize, OFFICE } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { replan } from "@/lib/planner/run";
 import { dayToDate, fmtDay, isDay } from "@/lib/time";
 
-/** Manual forecast entry (until the National Weather Service feed is connected). */
+/**
+ * Hand override for one day's rain chance (e.g. the scheduler knows better than the forecast).
+ * Applies to the daily summary and to that day's working hours (6 AM–8 PM), which is what the
+ * app checks. The next automatic weather update replaces it.
+ */
 export async function setForecast(form: FormData) {
   const user = await authorize(OFFICE);
   const locationId = String(form.get("locationId"));
@@ -19,8 +24,10 @@ export async function setForecast(form: FormData) {
     update: { precipChance: chance, summary, source: "manual", fetchedAt: new Date() },
     create: { locationId, day: dayToDate(day), precipChance: chance, summary, source: "manual" },
   });
+  await db.weatherHour.updateMany({ where: { locationId, day: dayToDate(day), hour: { gte: 6, lte: 20 } }, data: { precipChance: chance, ...(summary ? { summary } : {}) } });
   await db.auditLog.create({
     data: { actorId: user.id, entityType: "Weather", entityId: locationId, action: "FORECAST", summary: `Forecast for ${location.city} ${fmtDay(day)}: ${chance}% rain${summary ? ` (${summary})` : ""}` },
   });
+  await replan("forecast edited", user.id);
   revalidatePath("/", "layout");
 }

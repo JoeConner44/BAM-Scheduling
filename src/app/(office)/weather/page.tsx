@@ -22,8 +22,8 @@ export default async function WeatherPage() {
       <div>
         <h1 className="text-2xl font-bold">🌦️ Weather by location</h1>
         <p className="text-sm text-slate-500">
-          Chance of rain for each city where you have work. Weather-sensitive jobs on rainy days get a 🌧️ warning on the board. Nothing is moved automatically.
-          For now forecasts are typed in here; the National Weather Service feed plugs in during a later phase.
+          Chance of rain for each city where you have work, updated automatically from the National Weather Service every few hours (about 7 days ahead).
+          The app checks each job&apos;s actual work hours against the weather limits in Settings. You can override a day by hand here.
         </p>
       </div>
       <div className="card overflow-x-auto">

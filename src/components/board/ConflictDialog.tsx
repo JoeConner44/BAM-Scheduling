@@ -20,6 +20,8 @@ export const FINDING_ICON: Record<string, string> = {
   BEFORE_EARLIEST: "📆",
   NOT_READY: "🚧",
   WEATHER: "🌧️",
+  WEATHER_COLD: "🥶",
+  WEATHER_WIND: "💨",
   UNDERSTAFFED: "👥",
   MISSING_SKILL: "🎓",
   MISSING_EQUIPMENT: "🧰",

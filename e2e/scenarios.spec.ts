@@ -20,7 +20,7 @@ test("moving a project to another day", async ({ page }) => {
   await expect(unitCell(page, "Striping Truck #2", D4)).toContainText("Chick-fil-A");
 
   await page.goto("/activity");
-  await expect(page.getByText("Moved Chick-fil-A — Athens from Thu 9/24")).toBeVisible();
+  await expect(page.getByText("Moved Chick-fil-A — Athens from Thu 9/24").first()).toBeVisible();
 });
 
 test("assigning an employee by dropping the job on them", async ({ page }) => {
@@ -179,4 +179,41 @@ test("field employees cannot see the office schedule", async ({ page }) => {
   await login(page, "Chris");
   await page.goto("/board");
   await expect(page).toHaveURL(/\/field/);
+});
+
+test("estimator accepts a job; the app schedules it around rain and cold", async ({ page }) => {
+  // Estimator: only the "Accept a job" screen.
+  await login(page, "Erin Estimator");
+  await expect(page).toHaveURL(/\/jobs\/new/);
+  await expect(page.getByRole("link", { name: /Schedule/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "No work order — type it in" }).click();
+  await page.locator('input[name="name"]').fill("Tractor Supply");
+  await page.locator('input[name="customer"]').fill("Tractor Supply Co");
+  await page.locator('input[name="city"]').fill("Athens");
+  await page.locator('input[name="estTotalHours"]').fill("3");
+  await page.getByRole("button", { name: /Accept job/ }).click();
+  await expect(page.getByText("Tractor Supply — Athens is accepted.")).toBeVisible();
+
+  // Scheduler: the new job is waiting for the customer's requested date.
+  await login(page, "Dana Dispatcher");
+  const newJob = page.locator("li", { hasText: "Tractor Supply" }).first();
+  await newJob.getByLabel("Requested date for Tractor Supply").fill(D2);
+  await newJob.getByRole("button", { name: "Schedule it" }).click();
+  // Mon has afternoon storms in Athens (paint needs 4 dry hours) and Tue is 46°F until 10 AM,
+  // so the app picks Tue at 10 AM.
+  const changes = page.locator("li", { hasText: "Tractor Supply — Athens:" }).first();
+  await expect(changes).toContainText("scheduled Tue 9/29 10:00 AM");
+  await expect(changes).toContainText("1 day after the requested date");
+
+  // Lower the cold limit: the app re-plans to Tue 7 AM.
+  await page.goto("/settings");
+  await page.getByLabel("Default Coldest °F").fill("40");
+  await page.getByRole("button", { name: "Save weather limits" }).click();
+  await expect(page.getByText("Saved. The app re-planned the schedule")).toBeVisible();
+  await page.goto("/");
+  await expect(page.locator("li", { hasText: "Tractor Supply — Athens:" }).first()).toContainText("Tue 9/29 7:00 AM");
+
+  // On the board it's marked as placed by the app.
+  await page.goto(`/board?view=day&date=2026-09-29`);
+  await expect(page.locator('[data-drag="block"][data-label="Tractor Supply — Athens"]')).toContainText("Tractor Supply");
 });

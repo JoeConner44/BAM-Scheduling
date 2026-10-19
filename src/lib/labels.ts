@@ -147,7 +147,7 @@ export const CONDITION_REASON_ICON: Record<string, string> = {
   OTHER: "❓",
 };
 
-export const ROLE_LABEL: Record<string, string> = { OWNER: "Owner", DISPATCHER: "Dispatcher", FIELD: "Field" };
+export const ROLE_LABEL: Record<string, string> = { OWNER: "Owner", DISPATCHER: "Scheduler", ESTIMATOR: "Estimator", FIELD: "Field" };
 
 export const OVERRIDE_REASONS = ["Customer deadline", "Inspection coming up", "Urgent customer call", "Weather", "Another job delayed", "Equipment change"];
 

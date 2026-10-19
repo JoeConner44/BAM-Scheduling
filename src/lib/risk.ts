@@ -64,7 +64,7 @@ export function jobsAtRisk(
     if (fs.some((f) => (f.code === "UNDERSTAFFED" || f.code === "MISSING_SKILL" || f.code === "MISSING_EQUIPMENT") && soon.includes(f.blockId))) {
       reasons.push("Not fully staffed/equipped for the next visit");
     }
-    if (fs.some((f) => f.code === "WEATHER")) reasons.push("Rain forecast on a scheduled day");
+    if (fs.some((f) => f.code.startsWith("WEATHER"))) reasons.push("Rain forecast on a scheduled day");
 
     if (reasons.length) out.push({ projectId: p.id, label: p.label, reasons, level: high ? "high" : "medium" });
   }

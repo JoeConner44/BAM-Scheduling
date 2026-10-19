@@ -8,6 +8,7 @@ import {
   assignEquipment,
   moveBlock,
   removeBlock,
+  setBlockPinned,
   setBlockState,
   unassignEmployee,
   unassignEquipment,
@@ -74,6 +75,29 @@ export function BlockPanel({ data, blockId, onClose }: { data: BoardData; blockI
 
       <div className="space-y-5 p-4">
         {done && <div className="rounded-lg bg-green-50 p-3 text-sm font-semibold text-green-800">✅ This visit is finished.</div>}
+
+        {/* Who decides where this goes: the app, or a person */}
+        {!done && (
+          <div className={clsx("rounded-lg p-3 text-sm", block.auto && !block.pinned ? "bg-violet-50 text-violet-900" : "bg-slate-100 text-slate-800")}>
+            {block.auto && !block.pinned ? (
+              <>
+                <div className="font-semibold">🤖 Placed by the app</div>
+                <div>It may move this as weather, people and other jobs change.{block.why ? ` Picked because: ${block.why}.` : ""}</div>
+                <button className="btn-secondary mt-2" onClick={() => run(() => setBlockPinned({ blockId: block.id, pinned: true }))}>
+                  🔒 Lock it here
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="font-semibold">🔒 Locked</div>
+                <div>The app won&apos;t move this. If weather or a conflict hits it, you&apos;ll get an alert in the Inbox.</div>
+                <button className="btn-secondary mt-2" onClick={() => run(() => setBlockPinned({ blockId: block.id, pinned: false }))}>
+                  🤖 Let the app move it
+                </button>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Tentative / committed */}
         {!done && (

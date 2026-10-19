@@ -64,6 +64,7 @@ export function BlockChip({
     >
       <div className="flex items-center justify-between gap-1">
         <span className="font-mono text-[11px] opacity-90">
+          {block.auto && !block.pinned ? "🤖 " : block.pinned ? "🔒 " : ""}
           {fmtMinShort(block.startMin)}–{fmtMinShort(block.endMin)}
         </span>
         <SeverityBadge findings={visible.length ? visible : findings} />

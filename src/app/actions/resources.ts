@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import type { EmployeeStatus, EquipmentStatus, EquipmentType, Prisma, TimeOffType } from "@prisma/client";
 import { authorize, OFFICE } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { replan } from "@/lib/planner/run";
 import { EMPLOYEE_STATUS_LABEL, EQUIPMENT_STATUS_LABEL, EQUIPMENT_TYPE_LABEL, TIME_OFF_LABEL } from "@/lib/labels";
 import { dayToDate, fmtDay, fmtRange, isDay, parseHHMM, today } from "@/lib/time";
 import type { FormState } from "./projects";
@@ -56,6 +57,7 @@ export async function saveEmployee(_prev: FormState, form: FormData): Promise<Fo
     else await tx.user.updateMany({ where: { employeeId: e.id }, data: { name, active: data.active } });
     return e;
   });
+  await replan("person updated", user.id);
   revalidatePath("/", "layout");
   redirect(`/employees/${saved.id}`);
 }
@@ -113,6 +115,7 @@ export async function addTimeOff(_prev: TimeOffState, form: FormData): Promise<T
       },
     }),
   ]);
+  await replan("time off added", user.id);
   revalidatePath("/", "layout");
   return {
     ok: true,
@@ -130,6 +133,7 @@ export async function deleteTimeOff(form: FormData) {
       data: { actorId: user.id, entityType: "Employee", entityId: t.employeeId, action: "TIME_OFF_REMOVED", summary: `Removed time off for ${t.employee.name} (${TIME_OFF_LABEL[t.type]})` },
     }),
   ]);
+  await replan("time off removed", user.id);
   revalidatePath("/", "layout");
 }
 
@@ -188,6 +192,7 @@ export async function saveEquipment(_prev: FormState, form: FormData): Promise<F
     });
     return e;
   });
+  await replan("equipment updated", user.id);
   revalidatePath("/", "layout");
   redirect(`/equipment/${saved.id}`);
 }
@@ -212,12 +217,14 @@ export async function addDowntime(form: FormData) {
       },
     }),
   ]);
+  await replan("maintenance scheduled", user.id);
   revalidatePath("/", "layout");
 }
 
 export async function deleteDowntime(form: FormData) {
   await authorize(OFFICE);
   await db.equipmentDowntime.delete({ where: { id: String(form.get("id")) } });
+  await replan("maintenance removed");
   revalidatePath("/", "layout");
 }
 
@@ -227,7 +234,8 @@ export async function deleteDowntime(form: FormData) {
 export async function addOfficeUser(form: FormData) {
   const user = await authorize(["OWNER"]);
   const name = str(form, "name");
-  const role = str(form, "role") === "OWNER" ? "OWNER" : "DISPATCHER";
+  const picked = str(form, "role");
+  const role = picked === "OWNER" ? "OWNER" : picked === "ESTIMATOR" ? "ESTIMATOR" : "DISPATCHER";
   if (!name) return;
   await db.$transaction([
     db.user.create({ data: { name, role } }),

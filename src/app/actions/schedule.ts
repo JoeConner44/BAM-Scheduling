@@ -7,8 +7,10 @@ import { db } from "@/lib/db";
 import { loadSnapshotForDay, projectLabel, toEBlock } from "@/lib/data";
 import { introducedFindings, withBlock } from "@/lib/engine/conflicts";
 import type { EBlock, Finding } from "@/lib/engine/types";
+import { planningWindow, replan } from "@/lib/planner/run";
 import { syncProjectStatus } from "@/lib/status";
-import { dayToDate, fmtDay, fmtRange, isDay, type Day } from "@/lib/time";
+import { refreshWeather } from "@/lib/weather/refresh";
+import { dateToDay, dayToDate, fmtDay, fmtRange, isDay, type Day } from "@/lib/time";
 
 /**
  * Every scheduling change goes through `applyChange`:
@@ -60,12 +62,29 @@ async function applyChange(input: {
 
   const current = await loadSnapshotForDay(after.day, [projectId]);
   const proposed = withBlock(current, after);
-  const findings = introducedFindings(current, proposed, after.id);
+  // Work the app placed itself steps aside for a person's change (it gets re-planned right
+  // after), so clashing with it isn't a conflict worth asking about.
+  const win = await planningWindow();
+  const movable = new Set(
+    (
+      await db.scheduleBlock.findMany({
+        where: { day: dayToDate(after.day), auto: true, pinned: false, state: "TENTATIVE", progress: "PLANNED", id: { not: after.id } },
+        select: { id: true, day: true },
+      })
+    )
+      .filter((b) => dateToDay(b.day) >= win.firstDay)
+      .map((b) => b.id),
+  );
+  const findings = introducedFindings(current, proposed, after.id).filter(
+    (f) => !movable.has(f.blockId) && !(f.otherBlockId && movable.has(f.otherBlockId)),
+  );
 
   if (findings.length && !opts.override) return { ok: false, needsConfirm: true, findings, summary };
 
   const blockId = await db.$transaction(async (tx) => {
     const id = await input.persist(tx);
+    // A person changed this block, so the auto-scheduler must leave it where they put it.
+    await tx.scheduleBlock.update({ where: { id }, data: { pinned: true } });
     await tx.auditLog.create({
       data: {
         actorId: user.id,
@@ -93,6 +112,7 @@ async function applyChange(input: {
     return id;
   });
 
+  await replan(summary, user.id);
   revalidatePath("/", "layout");
   return { ok: true, blockId, overridden: findings.length > 0 };
 }
@@ -347,7 +367,47 @@ export async function removeBlock(input: { blockId: string; reason?: string }): 
       });
       await syncProjectStatus(tx, block.projectId, user.id);
     });
+    await replan("job taken off the schedule", user.id);
     revalidatePath("/", "layout");
     return { ok: true, blockId: block.id, overridden: false };
+  });
+}
+
+/**
+ * Lock a block where it is (the auto-scheduler won't move it) or unlock it so the app can
+ * move it to the best day again.
+ */
+export async function setBlockPinned(input: { blockId: string; pinned: boolean }): Promise<ScheduleResult> {
+  return guard(async (user) => {
+    const block = await getBlock(input.blockId);
+    await db.$transaction([
+      db.scheduleBlock.update({
+        where: { id: block.id },
+        // Unlocking hands the block back to the auto-scheduler.
+        data: input.pinned ? { pinned: true } : { pinned: false, auto: true, state: "TENTATIVE" },
+      }),
+      db.auditLog.create({
+        data: {
+          actorId: user.id,
+          entityType: "ScheduleBlock",
+          entityId: block.id,
+          action: input.pinned ? "LOCK" : "UNLOCK",
+          summary: `${input.pinned ? "Locked" : "Unlocked (app may move it)"}: ${projectLabel(block.project)} on ${fmtDay(toEBlock(block).day)}`,
+        },
+      }),
+    ]);
+    await replan(input.pinned ? "job locked" : "job unlocked", user.id);
+    revalidatePath("/", "layout");
+    return { ok: true, blockId: block.id, overridden: false };
+  });
+}
+
+/** Run the auto-scheduler now (the "Re-plan now" button). */
+export async function replanNow(): Promise<ScheduleResult> {
+  return guard(async (user) => {
+    await refreshWeather();
+    await replan("re-plan requested", user.id);
+    revalidatePath("/", "layout");
+    return { ok: true, blockId: "", overridden: false };
   });
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import clsx from "clsx";
 import { notFound } from "next/navigation";
+import { setRequestedDate } from "@/app/actions/jobs";
 import { addProjectNote, changeProjectStatus, deleteProject, uploadProjectPhoto } from "@/app/actions/projects";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { OFFICE, requireUser } from "@/lib/auth";
@@ -25,7 +26,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
   const project = await db.project.findUnique({ where: { id }, include: projectInclude });
   if (!project) notFound();
 
-  const [blocks, notes, photos, reports, history, audit] = await Promise.all([
+  const [blocks, notes, photos, reports, history, audit, materials] = await Promise.all([
     db.scheduleBlock.findMany({
       where: { projectId: id },
       include: { assignments: { include: { employee: true } }, equipmentAssignments: { include: { equipment: true } } },
@@ -41,6 +42,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
       orderBy: { at: "desc" },
       take: 30,
     }),
+    db.projectMaterial.findMany({ where: { projectId: id }, orderBy: { sortOrder: "asc" } }),
   ]);
   const card = toCard(project);
   const t = today();
@@ -126,6 +128,41 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
                 <p className="text-sm">{project.notes}</p>
               </div>
             )}
+          </section>
+
+          {/* Requested date, work order and materials */}
+          <section className="card grid gap-4 p-4 sm:grid-cols-2">
+            <div>
+              <h2 className="mb-1 font-bold">📅 Customer&apos;s requested date</h2>
+              <form action={setRequestedDate} className="flex flex-wrap items-center gap-2">
+                <input type="hidden" name="projectId" value={id} />
+                <input type="date" name="requestedDate" className="input w-auto" defaultValue={maybeDay(project.requestedDate) ?? ""} required />
+                <button className="btn-secondary">Save</button>
+              </form>
+              <p className="mt-1 text-xs text-slate-500">
+                {project.requestedDate ? "The app schedules this job as close to this date as the weather, crews and equipment allow." : "Set this and the app schedules the job."}
+              </p>
+              {project.workOrderFileKey && (
+                <a href={`/api/photos/${project.workOrderFileKey}`} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm font-semibold text-blue-700 hover:underline">
+                  📄 Work order{project.workOrderNumber ? ` #${project.workOrderNumber}` : ""}
+                </a>
+              )}
+            </div>
+            <div>
+              <h2 className="mb-1 font-bold">🎨 Materials</h2>
+              {materials.length ? (
+                <ul className="text-sm">
+                  {materials.map((m) => (
+                    <li key={m.id} className="flex justify-between border-b border-slate-100 py-0.5">
+                      <span>{m.name}</span>
+                      <span className="text-slate-600">{m.quantity !== null ? `${m.quantity} ${m.unit ?? ""}` : ""}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-slate-500">None listed.</p>
+              )}
+            </div>
           </section>
 
           {/* Schedule */}

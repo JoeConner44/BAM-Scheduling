@@ -33,6 +33,7 @@ export async function loadSampleData(db: PrismaClient): Promise<string> {
       athens: await db.location.create({ data: { city: "Athens", state: "GA", lat: 33.9519, lng: -83.3576 } }),
       winder: await db.location.create({ data: { city: "Winder", state: "GA", lat: 33.9926, lng: -83.7202 } }),
       lawrenceville: await db.location.create({ data: { city: "Lawrenceville", state: "GA", lat: 33.9562, lng: -83.988 } }),
+      watkinsville: await db.location.create({ data: { city: "Watkinsville", state: "GA", lat: 33.8626, lng: -83.4088 } }),
     };
 
     // ── Skills ──
@@ -69,6 +70,7 @@ export async function loadSampleData(db: PrismaClient): Promise<string> {
     // ── Users ──
     const owner = await db.user.create({ data: { name: "Pat Owner", email: "owner@bam.test", role: "OWNER" } });
     const dispatcher = await db.user.create({ data: { name: "Dana Dispatcher", email: "dispatch@bam.test", role: "DISPATCHER" } });
+    await db.user.create({ data: { name: "Erin Estimator", email: "estimate@bam.test", role: "ESTIMATOR" } });
     for (const p of people) {
       await db.user.create({ data: { name: p.name, phone: p.phone, role: "FIELD", employeeId: emp[p.name] } });
     }
@@ -113,7 +115,12 @@ export async function loadSampleData(db: PrismaClient): Promise<string> {
     // ── Job types & customers ──
     const jobTypeNames = ["Parking lot restripe", "New layout", "Thermoplastic", "Sealcoating", "ADA / signage"];
     const jobType: Record<string, string> = {};
-    for (const name of jobTypeNames) jobType[name] = (await db.jobType.create({ data: { name } })).id;
+    // Weather limits per type of work (blank = the default limits in Settings).
+    const jobTypeLimits: Record<string, { minTempF?: number; maxRainChance?: number; dryHoursAfter?: number }> = {
+      Sealcoating: { minTempF: 55, maxRainChance: 30, dryHoursAfter: 24 },
+      Thermoplastic: { minTempF: 45, dryHoursAfter: 1 },
+    };
+    for (const name of jobTypeNames) jobType[name] = (await db.jobType.create({ data: { name, ...jobTypeLimits[name] } })).id;
 
     const customer = async (name: string, contactName: string, phone: string, email: string) =>
       (await db.customer.create({ data: { name, contactName, phone, email } })).id;
@@ -147,6 +154,9 @@ export async function loadSampleData(db: PrismaClient): Promise<string> {
       percent?: number;
       actual?: number;
       remaining?: number;
+      /** Customer's requested date (set by the scheduler). Undefined = still needs one. */
+      requested?: Date;
+      materials?: [string, number, string][];
       contact: [string, string, string];
     };
 
@@ -201,13 +211,14 @@ export async function loadSampleData(db: PrismaClient): Promise<string> {
       {
         code: "P-1010", customer: "Barrow Regional Medical Center", name: "Barrow Regional Medical", street: "316 N Broad St", zip: "30680", loc: "winder", lat: 33.9981, lng: -83.7196,
         jobType: "Parking lot restripe", scope: "Restripe visitor + staff lots, ER lane markings.", hours: 8, crew: 2, priority: "HIGH", weather: "HIGH", status: "PARTIALLY_COMPLETE",
-        deadline: D(6), skills: [["Line Striping", 1]], equip: [["STRIPING_TRUCK", 1]], percent: 60, actual: 5, remaining: 3,
+        deadline: D(6), skills: [["Line Striping", 1]], equip: [["STRIPING_TRUCK", 1]], percent: 60, actual: 5, remaining: 3, requested: D(2),
         contact: ["Nina Shaw", "770-555-0210", "nshaw@barrowmed.example"],
       },
       {
         code: "P-1011", customer: "Sugarloaf Office Park", name: "Sugarloaf Office Park", street: "2300 Sugarloaf Pkwy", zip: "30045", loc: "lawrenceville", lat: 33.9721, lng: -84.0154,
         jobType: "Parking lot restripe", scope: "Restripe two lots, 180 stalls.", hours: 4, crew: 2, priority: "NORMAL", weather: "HIGH", status: "READY",
-        preferred: D(4), equip: [["STRIPING_TRUCK", 1]], contact: ["Omar Ali", "770-555-0211", "oali@sugarloafop.example"],
+        preferred: D(4), requested: D(4), equip: [["STRIPING_TRUCK", 1]], contact: ["Omar Ali", "770-555-0211", "oali@sugarloafop.example"],
+        materials: [["White traffic paint", 15, "gal"], ["Blue ADA paint", 2, "gal"], ["Glass beads", 100, "lb"]],
       },
       {
         code: "P-1012", customer: "Athens-Clarke County", name: "New Library Annex", street: "2025 Baxter St", zip: "30606", loc: "athens", lat: 33.9474, lng: -83.4018,
@@ -216,6 +227,14 @@ export async function loadSampleData(db: PrismaClient): Promise<string> {
         contact: ["Hector Ruiz", "706-555-0212", "hruiz@accgov.example"], notes: "Paving contractor expects to finish next week.",
       },
     ];
+
+    // Just accepted by the estimator: the scheduler still needs to enter the requested date.
+    projects.push({
+      code: "P-1013", customer: "Oconee Veterinary Hospital", name: "Oconee Veterinary Hospital", street: "1080 Experiment Station Rd", zip: "30677", loc: "watkinsville", lat: 33.8538, lng: -83.4113,
+      jobType: "Parking lot restripe", scope: "Restripe 60 stalls, 2 ADA stalls, arrows.", hours: 3, crew: 2, priority: "NORMAL", weather: "HIGH", status: "READY",
+      equip: [["STRIPING_TRUCK", 1]], contact: ["Dr. Lisa Moore", "706-555-0213", "office@oconeevet.example"],
+      materials: [["White traffic paint", 8, "gal"], ["Blue ADA paint", 1, "gal"], ["Glass beads", 50, "lb"]],
+    });
 
     const pid: Record<string, string> = {};
     for (const p of projects) {
@@ -251,6 +270,10 @@ export async function loadSampleData(db: PrismaClient): Promise<string> {
           percentComplete: p.percent ?? 0,
           actualHours: p.actual ?? 0,
           remainingHoursOverride: p.remaining ?? null,
+          acceptedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7),
+          // Jobs already on the board have their requested date = first scheduled day.
+          requestedDate: p.requested ?? null,
+          materials: { create: (p.materials ?? []).map(([name, quantity, unit], i) => ({ name, quantity, unit, sortOrder: i })) },
           requiredSkills: { create: (p.skills ?? []).map(([s, n]) => ({ skillId: skill[s], minCount: n })) },
           requiredEquipment: { create: (p.equip ?? []).map(([type, quantity]) => ({ type, quantity })) },
           statusHistory: { create: { toStatus: p.status, changedById: dispatcher.id, reason: "Imported" } },
@@ -278,6 +301,7 @@ export async function loadSampleData(db: PrismaClient): Promise<string> {
           endMin: end,
           state,
           createdById: dispatcher.id,
+          pinned: true, // placed by the dispatcher: the auto-scheduler leaves these alone
           ...extra,
           assignments: { create: people.map((n, i) => ({ employeeId: emp[n], isLead: i === 0 })) },
           equipmentAssignments: { create: units.map((u) => ({ equipmentId: eq[u] })) },
@@ -330,20 +354,41 @@ export async function loadSampleData(db: PrismaClient): Promise<string> {
       },
     });
 
-    // ── Weather (manual forecasts until the weather service is connected) ──
+    // Jobs already on the board: their requested date is the first day they're scheduled.
+    for (const [code, id] of Object.entries(pid)) {
+      if (code === "P-1013") continue; // just accepted — waiting for the scheduler
+      const first = await db.scheduleBlock.findFirst({ where: { projectId: id }, orderBy: { day: "asc" } });
+      const p = await db.project.findUniqueOrThrow({ where: { id } });
+      if (!p.requestedDate) await db.project.update({ where: { id }, data: { requestedDate: first?.day ?? p.deadline ?? D(5) } });
+    }
+
+    // ── Weather: hourly forecasts like the National Weather Service sends, plus daily summaries ──
+    //   D2: afternoon thunderstorms (Athens 70%).  D3: a cold morning (46°F until 10 AM).
     const forecastRows: Prisma.WeatherForecastCreateManyInput[] = [];
+    const hourRows: Prisma.WeatherHourCreateManyInput[] = [];
     for (let i = 0; i < 10; i++) {
-      const day = dayToDate(addDays(T, i));
+      const dayStr = addDays(T, i);
+      const day = dayToDate(dayStr);
       for (const l of Object.values(loc)) {
         let chance = [10, 15, 5, 20, 10, 0, 10, 15, 20, 5][i];
         let summary = chance < 15 ? "Sunny" : "Partly cloudy";
-        if (day.getTime() === D(2).getTime()) {
+        const storms = day.getTime() === D(2).getTime();
+        const coldMorning = day.getTime() === D(3).getTime();
+        if (storms) {
           chance = l.city === "Athens" ? 70 : l.city === "Winder" ? 45 : 30;
           summary = "Afternoon thunderstorms";
         }
-        forecastRows.push({ locationId: l.id, day, precipChance: chance, tempHighF: 78 - (i % 3), tempLowF: 58, windMph: 6, summary });
+        const temps: number[] = [];
+        for (let hour = 0; hour < 24; hour++) {
+          const tempF = coldMorning && hour < 10 ? 46 : Math.round(60 + 16 * Math.sin(((hour - 9) / 12) * Math.PI));
+          const precipChance = storms ? (hour >= 13 && hour <= 20 ? chance : 10) : chance;
+          temps.push(tempF);
+          if (i < 7) hourRows.push({ locationId: l.id, day, hour, tempF, precipChance, windMph: 6, summary: storms && hour >= 13 && hour <= 20 ? "Thunderstorms" : summary });
+        }
+        forecastRows.push({ locationId: l.id, day, precipChance: chance, tempHighF: Math.max(...temps.slice(6, 21)), tempLowF: Math.min(...temps.slice(6, 21)), windMph: 6, summary, source: i < 7 ? "nws" : "manual" });
       }
     }
+    await db.weatherHour.createMany({ data: hourRows });
     await db.weatherForecast.createMany({ data: forecastRows });
 
     // ── A little history so the activity log isn't empty ──

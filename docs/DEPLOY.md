@@ -60,6 +60,22 @@ It takes about 10 minutes, and you only do it once. After that, every change pus
 
 **Until phase 2, anyone who knows the access code can sign in as anyone.** Keep the code private and change it by editing `SITE_PASSWORD` under **Environment Variables**, then **Redeploy**. Phase 2 replaces the "pick who you are" sign-in with real passwords (office) and phone number + PIN (crews).
 
+## Turning on work-order reading (optional)
+
+The **Accept a job** screen can read an uploaded work order (PDF or photo) and fill in the job name, address, materials and dates. Reading uses Claude through Anthropic's API, which needs your own API key. Each work order costs a few cents.
+
+1. Go to **console.anthropic.com**, sign in, and add a payment method under **Billing**.
+2. Open **API Keys → Create Key**, name it `bam-scheduling`, and copy the key. It starts with `sk-ant-`.
+3. In Vercel, go to **Settings → Environment Variables**, add `ANTHROPIC_API_KEY` with the key as the value, and mark it **Secret**. Save, then **Redeploy**.
+
+Without the key, everything else works. The estimator just types the job details in, and the work order file is still attached to the job.
+
+## Weather and auto-scheduling
+
+- **Forecasts:** these come from the National Weather Service automatically. There's no account or key. The app refreshes them when someone opens the Inbox (if they're more than 3 hours old) and once a day at about 6 AM Eastern through Vercel Cron (`vercel.json`).
+- **Locking down the daily refresh (optional):** add an environment variable `CRON_SECRET` with any long random text. Vercel sends it with each daily refresh, and the app refuses refresh requests that don't include it.
+- **Weather limits:** set these per type of work under **Settings** in the app.
+
 ## If something goes wrong
 
 - **Build fails with "No database connected":** step 2 wasn't finished, or the database isn't connected to this project. Check **Storage** and **Settings → Environment Variables**.

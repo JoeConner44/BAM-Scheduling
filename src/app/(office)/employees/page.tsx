@@ -13,7 +13,7 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/employ
   const me = await requireUser(OFFICE);
   const welcome = (await searchParams).welcome === "1";
   const [officeUsers, skills] = await Promise.all([
-    db.user.findMany({ where: { role: { in: ["OWNER", "DISPATCHER"] } }, orderBy: [{ active: "desc" }, { name: "asc" }] }),
+    db.user.findMany({ where: { role: { in: ["OWNER", "DISPATCHER", "ESTIMATOR"] } }, orderBy: [{ active: "desc" }, { name: "asc" }] }),
     db.skill.findMany({ orderBy: { name: "asc" } }),
   ]);
   const t = today();
@@ -147,7 +147,7 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/employ
       <div className="grid gap-3 lg:grid-cols-2">
         <section className="card p-4">
           <h2 className="font-bold">🔑 Office logins</h2>
-          <p className="mb-2 text-xs text-slate-500">Owners and dispatchers who use the office screens. Crew members get their phone login when you add them above.</p>
+          <p className="mb-2 text-xs text-slate-500">Owners, schedulers and estimators. Estimators only see the &quot;Accept a job&quot; screen. Crew members get their phone login when you add them above.</p>
           <ul className="divide-y divide-slate-100 text-sm">
             {officeUsers.map((u) => (
               <li key={u.id} className={clsx("flex items-center justify-between gap-2 py-1.5", !u.active && "opacity-50")}>
@@ -169,7 +169,8 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/employ
             <form action={addOfficeUser} className="mt-3 flex flex-wrap gap-2">
               <input name="name" className="input max-w-xs flex-1" placeholder="Name" required />
               <select name="role" className="input w-auto" defaultValue="DISPATCHER">
-                <option value="DISPATCHER">Dispatcher</option>
+                <option value="DISPATCHER">Scheduler</option>
+                <option value="ESTIMATOR">Estimator</option>
                 <option value="OWNER">Owner</option>
               </select>
               <button className="btn-secondary">Add login</button>

@@ -1,7 +1,7 @@
 import { Board } from "@/components/board/Board";
 import type { BoardData, BoardEmployee, BoardEquipment, BoardWeather } from "@/components/board/types";
 import { OFFICE, requireUser } from "@/lib/auth";
-import { buildSnapshot, loadEmployees, loadEquipment, openProjects, projectInclude, projectLabel, toCard } from "@/lib/data";
+import { buildSnapshot, loadEmployees, loadEquipment, loadWeather, openProjects, projectInclude, projectLabel, toCard } from "@/lib/data";
 import { db } from "@/lib/db";
 import { checkAll } from "@/lib/engine/conflicts";
 import { addDays, dateToDay, dayOfWeek, dayRange, dayToDate, isDay, today, type Day } from "@/lib/time";
@@ -33,7 +33,7 @@ export default async function BoardPage({ searchParams }: PageProps<"/board">) {
   const projects = await db.project.findMany({ where: { id: { in: [...new Set(blocks.map((b) => b.projectId))] } }, include: projectInclude });
   const projectById = Object.fromEntries(projects.map((p) => [p.id, p]));
 
-  const snapshot = buildSnapshot({ blocks, projects, employees, equipment, forecasts });
+  const snapshot = buildSnapshot({ blocks, projects, employees, equipment, forecasts, ...(await loadWeather(from, addDays(to, 1))) });
   const findings = checkAll(snapshot);
 
   const visible = blocks.filter((b) => {
@@ -104,6 +104,9 @@ export default async function BoardPage({ searchParams }: PageProps<"/board">) {
         employeeIds: b.assignments.map((a) => a.employeeId),
         equipmentIds: b.equipmentAssignments.map((a) => a.equipmentId),
         estCrewSize: p.estCrewSize,
+        pinned: b.pinned,
+        auto: b.auto,
+        why: b.auto && b.notes?.startsWith("Auto-scheduled: ") ? b.notes.slice(16) : null,
       };
     }),
     employees: boardEmployees,
