@@ -4,18 +4,23 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 
-const LINKS = [
-  { href: "/", label: "Dashboard", icon: "📊" },
-  { href: "/todo", label: "TO DO", icon: "🗂️" },
+const OFFICE_LINKS = [
+  { href: "/", label: "Inbox", icon: "📥" },
   { href: "/board", label: "Schedule", icon: "📅" },
+  { href: "/todo", label: "Jobs", icon: "🗂️" },
   { href: "/employees", label: "People", icon: "👷" },
   { href: "/equipment", label: "Equipment", icon: "🚚" },
   { href: "/weather", label: "Weather", icon: "🌦️" },
+  { href: "/settings", label: "Settings", icon: "⚙️" },
   { href: "/activity", label: "Activity", icon: "🕘" },
 ];
 
-export function NavLinks() {
+const ESTIMATOR_LINKS = [{ href: "/jobs/new", label: "Accept a job", icon: "✅" }];
+
+/** Everyone sees only what their job needs. */
+export function NavLinks({ role }: { role: string }) {
   const pathname = usePathname();
+  const LINKS = role === "ESTIMATOR" ? ESTIMATOR_LINKS : OFFICE_LINKS.filter((l) => l.href !== "/activity" || role === "OWNER");
   return (
     <nav className="flex min-w-0 items-center gap-1 overflow-x-auto">
       {LINKS.map((l) => {

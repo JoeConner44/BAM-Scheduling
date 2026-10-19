@@ -74,11 +74,16 @@ export type SessionUser = NonNullable<Awaited<ReturnType<typeof currentUser>>>;
 export async function requireUser(roles?: Role[]): Promise<SessionUser> {
   const user = await currentUser();
   if (!user) redirect("/login");
-  if (roles && !roles.includes(user.role)) redirect(user.role === "FIELD" ? "/field" : "/");
+  if (roles && !roles.includes(user.role)) redirect(homeFor(user.role));
   return user;
 }
 
 export const OFFICE: Role[] = ["OWNER", "DISPATCHER"];
+
+/** Each role's starting screen. */
+export function homeFor(role: Role) {
+  return role === "FIELD" ? "/field" : role === "ESTIMATOR" ? "/jobs/new" : "/";
+}
 
 export class NotAllowedError extends Error {}
 

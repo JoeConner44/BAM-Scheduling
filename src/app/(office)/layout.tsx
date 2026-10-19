@@ -7,7 +7,7 @@ import { ROLE_LABEL } from "@/lib/labels";
 export const dynamic = "force-dynamic";
 
 export default async function OfficeLayout({ children }: LayoutProps<"/">) {
-  const user = await requireUser(OFFICE);
+  const user = await requireUser([...OFFICE, "ESTIMATOR"]);
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-40 bg-slate-900 text-white shadow">
@@ -16,10 +16,10 @@ export default async function OfficeLayout({ children }: LayoutProps<"/">) {
             <span className="text-xl">🛣️</span>
             <span className="hidden sm:inline">BAM Scheduling</span>
           </Link>
-          <NavLinks />
+          <NavLinks role={user.role} />
           <div className="ml-auto flex shrink-0 items-center gap-2">
-            <Link href="/projects/new" className="btn bg-emerald-500 text-slate-950 hover:bg-emerald-400">
-              + <span className="hidden md:inline">New project</span>
+            <Link href="/jobs/new" className="btn bg-emerald-500 text-slate-950 hover:bg-emerald-400">
+              ✅ <span className="hidden md:inline">Accept a job</span>
             </Link>
             <div className="hidden text-right text-xs leading-tight lg:block">
               <div className="font-semibold">{user.name}</div>

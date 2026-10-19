@@ -2,6 +2,7 @@
 // so the same code runs in the browser (instant feedback) and on the server (final check).
 
 import type { Day } from "../time";
+import type { WeatherHourData, WeatherRules } from "../weather/rules";
 
 /** conflict = red (double-booking, time off, past deadline) · warning = yellow · info = not fully staffed yet */
 export type Severity = "conflict" | "warning" | "info";
@@ -21,6 +22,8 @@ export type FindingCode =
   | "BEFORE_EARLIEST"
   | "NOT_READY"
   | "WEATHER"
+  | "WEATHER_COLD"
+  | "WEATHER_WIND"
   | "UNDERSTAFFED"
   | "MISSING_SKILL"
   | "MISSING_EQUIPMENT";
@@ -60,6 +63,7 @@ export interface EProject {
   label: string;
   city: string;
   locationId: string | null;
+  jobTypeId: string | null;
   lat: number | null;
   lng: number | null;
   deadline: Day | null;
@@ -124,6 +128,11 @@ export interface Snapshot {
   projects: Record<string, EProject>;
   employees: Record<string, EEmployee>;
   equipment: Record<string, EEquipment>;
+  /** Daily summaries (fallback when there's no hourly data, e.g. hand-entered). */
   forecasts: EForecast[];
+  /** Hourly forecast by location. */
+  weatherHours?: Record<string, WeatherHourData[]>;
+  /** Weather limits (default + per job type). */
+  weatherRules?: WeatherRules;
   settings: EngineSettings;
 }

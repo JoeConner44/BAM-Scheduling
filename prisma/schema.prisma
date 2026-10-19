@@ -23,7 +23,9 @@ datasource db {
 
 enum Role {
   OWNER
+  /// Shown as "Scheduler" in the app.
   DISPATCHER
+  ESTIMATOR
   FIELD
 }
 
@@ -247,26 +249,35 @@ model Customer {
 
 /// Created automatically from project addresses (city + state). Never hard-coded.
 model Location {
-  id        String            @id @default(cuid())
-  city      String
-  state     String
-  lat       Float?
-  lng       Float?
-  createdAt DateTime          @default(now())
-  projects  Project[]
-  employees Employee[]
-  equipment Equipment[]
-  forecasts WeatherForecast[]
+  id               String            @id @default(cuid())
+  city             String
+  state            String
+  lat              Float?
+  lng              Float?
+  createdAt        DateTime          @default(now())
+  projects         Project[]
+  employees        Employee[]
+  equipment        Equipment[]
+  forecasts        WeatherForecast[]
+  hours            WeatherHour[]
+  /// When hourly weather was last fetched for this location.
+  weatherFetchedAt DateTime?
 
   @@unique([city, state])
 }
 
 // ───────────────────────────── Projects ─────────────────────────────
 
+/// Type of work. Each type carries its own weather limits (null = use the default limits).
 model JobType {
-  id       String    @id @default(cuid())
-  name     String    @unique
-  projects Project[]
+  id            String    @id @default(cuid())
+  name          String    @unique
+  minTempF      Int?
+  maxRainChance Int?
+  /// Hours after the work that must stay dry (paint/sealer cure time).
+  dryHoursAfter Int?
+  maxWindMph    Int?
+  projects      Project[]
 }
 
 model Project {
@@ -305,10 +316,19 @@ model Project {
   /// Set when the field crew reports "need about N more hours". Null = estimate − actual.
   remainingHoursOverride Float?
   notes                  String?
+  /// When the estimator marked the job accepted (won).
+  acceptedAt             DateTime?
+  /// The date the customer asked for; the scheduler enters it and the auto-scheduler aims for it.
+  requestedDate          DateTime?          @db.Date
+  workOrderNumber        String?
+  /// Uploaded work order (StoredFile key).
+  workOrderFileKey       String?
   createdAt              DateTime           @default(now())
   updatedAt              DateTime           @updatedAt
 
   requiredSkills    ProjectRequiredSkill[]
+  materials         ProjectMaterial[]
+  alerts            Alert[]
   requiredEquipment ProjectRequiredEquipment[]
   blocks            ScheduleBlock[]
   statusHistory     ProjectStatusHistory[]
@@ -318,6 +338,17 @@ model Project {
 
   @@index([status])
   @@index([locationId])
+}
+
+/// Materials read from the work order (paint, beads, thermoplastic, sealer…).
+model ProjectMaterial {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  quantity  Float?
+  unit      String?
+  sortOrder Int     @default(0)
 }
 
 model ProjectRequiredSkill {
@@ -453,6 +484,10 @@ model ScheduleBlock {
   completedAt DateTime?
   /// Hours the crew reports working on this visit (latest figure; adds to Project.actualHours).
   actualHours Float?
+  /// Locked by a person: the auto-scheduler never moves it (it raises an alert instead).
+  pinned      Boolean       @default(false)
+  /// Placed by the auto-scheduler.
+  auto        Boolean       @default(false)
   notes       String?
   createdById String?
   createdBy   User?         @relation(fields: [createdById], references: [id])
@@ -465,6 +500,7 @@ model ScheduleBlock {
   notesList            ProjectNote[]
   photos               ProjectPhoto[]
   conditionReports     ConditionReport[]
+  alerts               Alert[]
 
   @@index([day])
   @@index([projectId])
@@ -566,4 +602,60 @@ model AppSetting {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+/// Hourly forecast per location, in the company's local time (day + hour 0–23).
+model WeatherHour {
+  id           String   @id @default(cuid())
+  locationId   String
+  location     Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  day          DateTime @db.Date
+  hour         Int
+  tempF        Int
+  precipChance Int
+  windMph      Int
+  summary      String?
+
+  @@unique([locationId, day, hour])
+}
+
+enum AlertKind {
+  WEATHER_RAIN
+  WEATHER_COLD
+  WEATHER_WIND
+  MOVED
+  UNPLACED
+  CONFLICT
+  NEW_JOB
+}
+
+/// Things the scheduler should look at. Recomputed after every change; resolved ones close themselves.
+model Alert {
+  id          String         @id @default(cuid())
+  /// Stable identity so the same problem isn't raised twice.
+  key         String         @unique
+  kind        AlertKind
+  severity    String         @default("warning")
+  projectId   String?
+  project     Project?       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  blockId     String?
+  block       ScheduleBlock? @relation(fields: [blockId], references: [id], onDelete: SetNull)
+  day         DateTime?      @db.Date
+  title       String
+  message     String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  resolvedAt  DateTime?
+  dismissedAt DateTime?
+
+  @@index([resolvedAt, dismissedAt])
+}
+
+/// One run of the auto-scheduler and what it changed.
+model PlanRun {
+  id      String   @id @default(cuid())
+  at      DateTime @default(now())
+  trigger String
+  summary String
+  changes Json
 }

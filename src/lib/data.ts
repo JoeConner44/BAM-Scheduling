@@ -4,6 +4,8 @@ import { db } from "./db";
 import { DEFAULT_SETTINGS, isLive } from "./engine/conflicts";
 import type { EBlock, EEmployee, EEquipment, EProject, Snapshot } from "./engine/types";
 import { EQUIPMENT_TYPE_LABEL } from "./labels";
+import { getWeatherRules } from "./settings";
+import type { WeatherHourData, WeatherRules } from "./weather/rules";
 import { addDays, dateToDay, dayToDate, maybeDay, today, type Day } from "./time";
 
 // ───────────────────────── Project shapes ─────────────────────────
@@ -40,6 +42,7 @@ export function toEProject(p: ProjectWithRefs): EProject {
     label: projectLabel(p),
     city: p.city,
     locationId: p.locationId,
+    jobTypeId: p.jobTypeId,
     lat: p.lat ?? p.location?.lat ?? null,
     lng: p.lng ?? p.location?.lng ?? null,
     deadline: maybeDay(p.deadline),
@@ -188,7 +191,7 @@ export function toEEquipment(e: Awaited<ReturnType<typeof loadEquipment>>[number
  * One day of padding on each side keeps overlap and travel checks accurate at the edges.
  */
 export async function loadSnapshot(from: Day, to: Day) {
-  const [blocks, employees, equipment, forecasts] = await Promise.all([
+  const [blocks, employees, equipment, forecasts, weather] = await Promise.all([
     db.scheduleBlock.findMany({
       where: { day: { gte: dayToDate(addDays(from, -1)), lte: dayToDate(addDays(to, 1)) } },
       include: blockInclude,
@@ -197,10 +200,11 @@ export async function loadSnapshot(from: Day, to: Day) {
     loadEmployees(),
     loadEquipment(),
     db.weatherForecast.findMany({ where: { day: { gte: dayToDate(from), lte: dayToDate(to) } } }),
+    loadWeather(from, addDays(to, 1)),
   ]);
   const projectIds = [...new Set(blocks.map((b) => b.projectId))];
   const projects = await db.project.findMany({ where: { id: { in: projectIds } }, include: projectInclude });
-  return buildSnapshot({ blocks, projects, employees, equipment, forecasts });
+  return buildSnapshot({ blocks, projects, employees, equipment, forecasts, ...weather });
 }
 
 /** Snapshot for checking a change to one block: loads that block's day (and project). */
@@ -220,6 +224,8 @@ export function buildSnapshot(input: {
   employees: Awaited<ReturnType<typeof loadEmployees>>;
   equipment: Awaited<ReturnType<typeof loadEquipment>>;
   forecasts: { locationId: string; day: Date; precipChance: number; summary: string | null }[];
+  weatherHours?: Record<string, WeatherHourData[]>;
+  weatherRules?: WeatherRules;
 }): Snapshot {
   return {
     blocks: input.blocks.map(toEBlock),
@@ -227,8 +233,23 @@ export function buildSnapshot(input: {
     employees: Object.fromEntries(input.employees.map((e) => [e.id, toEEmployee(e)])),
     equipment: Object.fromEntries(input.equipment.map((e) => [e.id, toEEquipment(e)])),
     forecasts: input.forecasts.map((f) => ({ locationId: f.locationId, day: dateToDay(f.day), precipChance: f.precipChance, summary: f.summary })),
+    weatherHours: input.weatherHours,
+    weatherRules: input.weatherRules,
     settings: { today: today(), ...DEFAULT_SETTINGS },
   };
+}
+
+/** Hourly weather (grouped by location) and the weather limits, for the engine and the planner. */
+export async function loadWeather(from: Day, to: Day) {
+  const [rows, weatherRules] = await Promise.all([
+    db.weatherHour.findMany({ where: { day: { gte: dayToDate(from), lte: dayToDate(to) } }, orderBy: [{ day: "asc" }, { hour: "asc" }] }),
+    getWeatherRules(),
+  ]);
+  const weatherHours: Record<string, WeatherHourData[]> = {};
+  for (const r of rows) {
+    (weatherHours[r.locationId] ??= []).push({ day: dateToDay(r.day), hour: r.hour, tempF: r.tempF, precipChance: r.precipChance, windMph: r.windMph, summary: r.summary });
+  }
+  return { weatherHours, weatherRules };
 }
 
 // ───────────────────────── Locations ─────────────────────────

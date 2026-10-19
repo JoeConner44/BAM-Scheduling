@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { ConditionReason, Prisma, ProjectStatus } from "@prisma/client";
 import { authorize, type SessionUser } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { replan } from "@/lib/planner/run";
 import { CONDITION_REASON_LABEL } from "@/lib/labels";
 import { setProjectStatus } from "@/lib/status";
 import { savePhoto } from "@/lib/storage";
@@ -26,6 +27,7 @@ async function guard(fn: (user: SessionUser) => Promise<FieldResult>): Promise<F
   try {
     const user = await authorize();
     const result = await fn(user);
+    await replan("field update", user.id);
     revalidatePath("/", "layout");
     return result;
   } catch (e) {

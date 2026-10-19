@@ -10,7 +10,9 @@ See [docs/PLAN.md](docs/PLAN.md) for the full plan and phase status, and [docs/D
 
 | Screen | URL | What it does |
 |---|---|---|
-| Dashboard | `/` | Today's tiles, today's work, people and equipment available or off, ⚠️ jobs at risk, conflicts, weather and affected jobs |
+| Inbox (scheduler home) | `/` | New jobs waiting for a requested date, alerts (rain, cold, wind, conflicts, jobs that can't fit), what the auto-scheduler changed and why, then today's overview |
+| Accept a job (estimator home) | `/jobs/new` | Upload the work order; the app reads job name, address, materials and dates (Claude) for the estimator to check and accept |
+| Settings | `/settings` | Weather limits per type of work, workday hours, frozen days, planning horizon |
 | TO DO board | `/todo` | Every open project as a card, with 12 filters, sorting, and grouping by location |
 | Scheduling board | `/board` | Drag-and-drop week and day views. Rows for each person and each piece of equipment. Tentative vs committed. Conflict checks run live |
 | Project card | `/projects/[id]` | All project fields, schedule, field reports, notes, photos, status history, change history |
@@ -19,6 +21,19 @@ See [docs/PLAN.md](docs/PLAN.md) for the full plan and phase status, and [docs/D
 | Field phone screen | `/field` | Today's jobs with big buttons: start, pause, 🚧 job conditions changed, photo, note, mark complete or partial |
 | Weather | `/weather` | Rain chance per city per day (entered by hand for now) |
 | Activity | `/activity` | Audit log of every change. Overrides are highlighted with the conflicts that were accepted |
+
+## How scheduling works
+
+1. The estimator accepts a job (work order upload).
+2. The scheduler enters the customer's requested date.
+3. The auto-scheduler (`src/lib/planner`) places the job on the best workable day it can find. It checks:
+   - the National Weather Service hourly forecast against the weather limits for that type of work
+   - crew availability, skills and time off
+   - equipment, and drive time between jobs
+   - deadlines and inspection dates
+
+   It also prefers crews already working nearby. It re-plans after every change and on a daily cron.
+4. Work a person placed, locked or confirmed is never moved. Anything that goes wrong with it becomes an Inbox alert instead.
 
 ## Run it locally
 

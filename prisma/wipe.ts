@@ -4,6 +4,10 @@ import type { PrismaClient } from "@prisma/client";
 export async function wipeAllData(db: PrismaClient) {
   await db.$transaction([
     db.auditLog.deleteMany(),
+    db.alert.deleteMany(),
+    db.planRun.deleteMany(),
+    db.weatherHour.deleteMany(),
+    db.projectMaterial.deleteMany(),
     db.storedFile.deleteMany(),
     db.schedulingOverride.deleteMany(),
     db.conditionReport.deleteMany(),

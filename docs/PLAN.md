@@ -299,3 +299,24 @@ Next step after approval: Phase 1, the scaffold, schema, seed and clickable prot
 - Travel-time check using a real routing service (now: straight-line × 1.3 at 40 mph). Geocoding of addresses (now: GPS entered by hand, or the city center).
 - Photo storage on S3/R2 for production (now: local `uploads/` folder).
 - Mobile polish for the board itself on small tablets.
+
+---
+
+## Phase 2a — auto-scheduling (Oct 2026)
+
+Built from the owner's audit feedback ("the app should do the heavy lifting"):
+
+- **Roles:**
+  - The estimator only accepts jobs (work order upload, read by Claude into editable fields, materials included).
+  - The scheduler works from an Inbox.
+  - Crews have the phone screen.
+- **Auto-scheduler** (`src/lib/planner/plan.ts`): places every job that has a requested date and keeps re-planning after every change. It takes into account:
+  - weather fit per type of work, by the hour
+  - crew size, skills, time off and drive time
+  - equipment, and whether it's in the shop
+  - deadlines and inspections, and nearby work
+
+  It never moves work that's locked, confirmed, placed by hand or inside the frozen days. Problems there become alerts.
+- **Weather:** live National Weather Service hourly forecasts. Limits (coldest °F, max rain %, dry hours after, max wind) are editable per type of work in Settings.
+- **Not built (by request):** text messages.
+- **Still to do:** real sign-in (password / phone + PIN).

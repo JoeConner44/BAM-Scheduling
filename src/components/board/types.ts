@@ -19,6 +19,12 @@ export interface BoardBlock {
   employeeIds: string[];
   equipmentIds: string[];
   estCrewSize: number;
+  /** Locked by a person: the auto-scheduler won't move it. */
+  pinned: boolean;
+  /** Placed by the auto-scheduler. */
+  auto: boolean;
+  /** The app's reason for picking this slot. */
+  why: string | null;
 }
 
 export interface BoardTimeOff {

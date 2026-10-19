@@ -6,6 +6,8 @@ import type { EquipmentType, Prisma, Priority, ProjectStatus, WeatherSensitivity
 import { authorize, OFFICE } from "@/lib/auth";
 import { ensureLocation } from "@/lib/data";
 import { db } from "@/lib/db";
+import { geocodeAddress } from "@/lib/geocode";
+import { replan } from "@/lib/planner/run";
 import { EQUIPMENT_TYPE_LABEL, PRIORITY_LABEL, PROJECT_STATUS_LABEL, WEATHER_SENSITIVITY_LABEL } from "@/lib/labels";
 import { setProjectStatus, syncProjectStatus } from "@/lib/status";
 import { savePhoto } from "@/lib/storage";
@@ -53,8 +55,13 @@ export async function saveProject(_prev: FormState, form: FormData): Promise<For
     return { error: "Customer, project name, city and estimated hours are required." };
   }
 
-  const lat = num(form, "lat");
-  const lng = num(form, "lng");
+  let lat = num(form, "lat");
+  let lng = num(form, "lng");
+  if ((lat === null || lng === null) && str(form, "street")) {
+    // Look the address up so travel times and the weather forecast use the real spot.
+    const found = await geocodeAddress(`${str(form, "street")}, ${city}, ${state} ${str(form, "zip") ?? ""}`.trim());
+    if (found) ({ lat, lng } = found);
+  }
   const location = await ensureLocation(city, state, { lat, lng });
   const customer = await db.customer.upsert({ where: { name: customerName }, update: {}, create: { name: customerName } });
   const jobTypeName = str(form, "jobType");
@@ -146,6 +153,7 @@ export async function saveProject(_prev: FormState, form: FormData): Promise<For
     });
     projectId = created.id;
   }
+  await replan("project saved", user.id);
   revalidatePath("/", "layout");
   redirect(`/projects/${projectId}`);
 }
@@ -171,6 +179,7 @@ export async function changeProjectStatus(form: FormData) {
       },
     });
   });
+  await replan("project status changed", user.id);
   revalidatePath("/", "layout");
 }
 
@@ -205,6 +214,7 @@ export async function deleteProject(form: FormData) {
     db.project.delete({ where: { id } }),
     db.auditLog.create({ data: { actorId: user.id, entityType: "Project", entityId: id, action: "DELETE", summary: `Deleted project ${project.name} — ${project.city}` } }),
   ]);
+  await replan("project deleted", user.id);
   revalidatePath("/", "layout");
   redirect("/todo");
 }
