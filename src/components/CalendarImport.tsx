@@ -26,7 +26,6 @@ export function CalendarImport() {
   const payload = JSON.stringify(
     chosen.map((r) => ({ name: r.name, customer: r.customer || r.name, street: r.street, city: r.city, state: r.state, zip: r.zip, notes: r.notes, slots: r.slots })),
   );
-  const missingCity = chosen.filter((r) => !r.city.trim()).length;
 
   return (
     <div className="space-y-4">
@@ -95,7 +94,7 @@ export function CalendarImport() {
                         <input className="input" value={r.street} onChange={(e) => edit(r.key, { street: e.target.value })} placeholder="optional" />
                       </Box>
                       <Box label="City" className="sm:col-span-3">
-                        <input className={clsx("input", !r.city.trim() && "border-red-400")} value={r.city} onChange={(e) => edit(r.key, { city: e.target.value })} placeholder="needed" />
+                        <input className="input" value={r.city} onChange={(e) => edit(r.key, { city: e.target.value })} placeholder="add later if you don't know" />
                       </Box>
                       <Box label="State">
                         <input className="input" value={r.state} maxLength={2} onChange={(e) => edit(r.key, { state: e.target.value.toUpperCase() })} />
@@ -112,10 +111,9 @@ export function CalendarImport() {
 
           <input type="hidden" name="jobs" value={payload} />
           <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3">
-            <button className="btn-primary" disabled={importing || !chosen.length || missingCity > 0}>
+            <button className="btn-primary" disabled={importing || !chosen.length}>
               {importing ? "Importing…" : `Import ${chosen.length} job${chosen.length === 1 ? "" : "s"}`}
             </button>
-            {missingCity > 0 && <span className="text-sm font-semibold text-red-700">Add a city for {missingCity} ticked job{missingCity === 1 ? "" : "s"}.</span>}
           </div>
         </form>
       )}

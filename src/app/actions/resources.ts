@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import type { EmployeeStatus, EquipmentStatus, EquipmentType, Prisma, TimeOffType } from "@prisma/client";
 import { authorize, OFFICE } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { projectLabel } from "@/lib/data";
 import { replan } from "@/lib/planner/run";
 import { EMPLOYEE_STATUS_LABEL, EQUIPMENT_STATUS_LABEL, EQUIPMENT_TYPE_LABEL, ROLE_LABEL, TIME_OFF_LABEL } from "@/lib/labels";
 import { dayToDate, fmtDay, fmtRange, isDay, parseHHMM, today } from "@/lib/time";
@@ -119,7 +120,7 @@ export async function addTimeOff(_prev: TimeOffState, form: FormData): Promise<T
   revalidatePath("/", "layout");
   return {
     ok: true,
-    affected: affected.map((b) => `${b.project.name} — ${b.project.city}, ${fmtDay(b.day.toISOString().slice(0, 10))} ${fmtRange(b.startMin, b.endMin)}`),
+    affected: affected.map((b) => `${projectLabel(b.project)}, ${fmtDay(b.day.toISOString().slice(0, 10))} ${fmtRange(b.startMin, b.endMin)}`),
   };
 }
 

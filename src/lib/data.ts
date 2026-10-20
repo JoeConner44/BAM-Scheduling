@@ -22,7 +22,7 @@ export const projectInclude = {
 export type ProjectWithRefs = Prisma.ProjectGetPayload<{ include: typeof projectInclude }>;
 
 export function projectLabel(p: { name: string; city: string }) {
-  return `${p.name} — ${p.city}`;
+  return p.city ? `${p.name} — ${p.city}` : p.name;
 }
 
 /** Hours still to do: the crew's latest estimate if they gave one, otherwise estimate − actual. */

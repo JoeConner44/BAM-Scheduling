@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { authorize, OFFICE } from "@/lib/auth";
 import { groupEvents, icsTextsFromUpload, mentionedEmployees, parseIcs, type CalendarEvent } from "@/lib/calendar-import";
-import { ensureLocation } from "@/lib/data";
+import { ensureLocation, projectLabel } from "@/lib/data";
 import { db } from "@/lib/db";
 import { geocodeAddress } from "@/lib/geocode";
 import { replan } from "@/lib/planner/run";
@@ -136,7 +136,7 @@ const Job = z.object({
   name: z.string().trim().min(1).max(200),
   customer: z.string().trim().min(1).max(200),
   street: z.string().trim().max(300),
-  city: z.string().trim().min(1, "Every job needs a city").max(100),
+  city: z.string().trim().max(100),
   state: z.string().trim().length(2),
   zip: z.string().trim().max(10),
   notes: z.string().max(5000),
@@ -186,9 +186,10 @@ export async function importCalendar(_prev: ImportState, form: FormData): Promis
       await db.project.update({ where: { id: projectId }, data: { estTotalHours: { increment: hours } } });
       updated++;
     } else {
-      const coords = job.street ? await geocodeAddress(`${job.street}, ${job.city}, ${state} ${job.zip}`.trim()) : null;
-      const location = await ensureLocation(job.city, state, coords ?? undefined);
-      if (coords && location.lat === null) await db.location.update({ where: { id: location.id }, data: coords });
+      // Calendar events often have only a name; the Inbox asks for the missing address later.
+      const coords = job.street && job.city ? await geocodeAddress(`${job.street}, ${job.city}, ${state} ${job.zip}`.trim()) : null;
+      const location = job.city ? await ensureLocation(job.city, state, coords ?? undefined) : null;
+      if (coords && location && location.lat === null) await db.location.update({ where: { id: location.id }, data: coords });
       const customer = await db.customer.upsert({ where: { name: job.customer }, update: {}, create: { name: job.customer } });
       const last = await db.project.findFirst({ where: { code: { startsWith: "P-" } }, orderBy: { code: "desc" } });
       const firstDay = slots.map((s) => s.day).sort()[0];
@@ -198,12 +199,12 @@ export async function importCalendar(_prev: ImportState, form: FormData): Promis
           customerId: customer.id,
           name: job.name,
           street: job.street || null,
-          city: location.city,
-          state: location.state,
+          city: location?.city ?? "",
+          state: location?.state ?? state,
           zip: job.zip || null,
           lat: coords?.lat ?? null,
           lng: coords?.lng ?? null,
-          locationId: location.id,
+          locationId: location?.id ?? null,
           notes: job.notes || null,
           estTotalHours: Math.round(hours * 4) / 4,
           estCrewSize: 2,
@@ -234,7 +235,7 @@ export async function importCalendar(_prev: ImportState, form: FormData): Promis
       blocks++;
     }
     await db.auditLog.create({
-      data: { actorId: user.id, entityType: "Project", entityId: projectId, action: "IMPORT", summary: `Imported ${job.name} — ${job.city} from Google Calendar (${slots.length} day${slots.length === 1 ? "" : "s"})` },
+      data: { actorId: user.id, entityType: "Project", entityId: projectId, action: "IMPORT", summary: `Imported ${projectLabel(job)} from Google Calendar (${slots.length} day${slots.length === 1 ? "" : "s"})` },
     });
   }
 

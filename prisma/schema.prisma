@@ -629,6 +629,7 @@ enum AlertKind {
   UNPLACED
   CONFLICT
   NEW_JOB
+  MISSING_INFO
 }
 
 /// Things the scheduler should look at. Recomputed after every change; resolved ones close themselves.

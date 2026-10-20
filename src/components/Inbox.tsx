@@ -81,7 +81,12 @@ export async function Inbox() {
                       Open that day →
                     </Link>
                   )}
-                  {a.projectId && (
+                  {a.projectId && a.kind === "MISSING_INFO" && (
+                    <Link href={`/projects/${a.projectId}/edit`} className="text-blue-700 hover:underline">
+                      Fill it in →
+                    </Link>
+                  )}
+                  {a.projectId && a.kind !== "MISSING_INFO" && (
                     <Link href={`/projects/${a.projectId}`} className="text-blue-700 hover:underline">
                       Open job →
                     </Link>
