@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { saveSchedulingSettings, saveWeatherLimits } from "@/app/actions/settings";
 import { OFFICE, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -20,7 +21,12 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-3 sm:p-6">
-      <h1 className="text-2xl font-bold">⚙️ Settings</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold">⚙️ Settings</h1>
+        <Link href="/import" className="btn-secondary">
+          📆 Import jobs from Google Calendar
+        </Link>
+      </div>
       {saved && (
         <div className="rounded-lg bg-emerald-50 p-3 text-sm font-semibold text-emerald-800" role="status">
           ✅ Saved. The app re-planned the schedule with the new {saved === "weather" ? "weather limits" : "settings"}.

@@ -488,6 +488,8 @@ model ScheduleBlock {
   pinned      Boolean       @default(false)
   /// Placed by the auto-scheduler.
   auto        Boolean       @default(false)
+  /// Where it came from outside the app (e.g. a Google Calendar event), so imports don't duplicate.
+  externalRef String?       @unique
   notes       String?
   createdById String?
   createdBy   User?         @relation(fields: [createdById], references: [id])
