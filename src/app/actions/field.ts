@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { ConditionReason, Prisma, ProjectStatus } from "@prisma/client";
 import { authorize, type SessionUser } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { projectLabel } from "@/lib/data";
 import { replan } from "@/lib/planner/run";
 import { CONDITION_REASON_LABEL } from "@/lib/labels";
 import { setProjectStatus } from "@/lib/status";
@@ -60,7 +61,7 @@ export async function startJob(blockId: string): Promise<FieldResult> {
         data: { progress: "ACTIVE", startedAt: block.startedAt ?? new Date(), pausedAt: null },
       });
       if (block.project.status !== "IN_PROGRESS") await setProjectStatus(tx, block.projectId, block.project.status, "IN_PROGRESS", user.id, "Crew started work");
-      await log(tx, user, blockId, block.progress === "PAUSED" ? "RESUME" : "START", `${user.name} ${block.progress === "PAUSED" ? "resumed" : "started"} ${block.project.name} — ${block.project.city}`);
+      await log(tx, user, blockId, block.progress === "PAUSED" ? "RESUME" : "START", `${user.name} ${block.progress === "PAUSED" ? "resumed" : "started"} ${projectLabel(block.project)}`);
     });
     return { ok: true, message: block.progress === "PAUSED" ? "Job resumed." : "Job started. Good luck!" };
   });
@@ -71,7 +72,7 @@ export async function pauseJob(blockId: string): Promise<FieldResult> {
     const block = await loadBlockFor(user, blockId);
     await db.$transaction(async (tx) => {
       await tx.scheduleBlock.update({ where: { id: blockId }, data: { progress: "PAUSED", pausedAt: new Date() } });
-      await log(tx, user, blockId, "PAUSE", `${user.name} paused ${block.project.name} — ${block.project.city}`);
+      await log(tx, user, blockId, "PAUSE", `${user.name} paused ${projectLabel(block.project)}`);
     });
     return { ok: true, message: "Job paused." };
   });
@@ -137,7 +138,7 @@ export async function reportConditions(form: FormData): Promise<FieldResult> {
         const next = STOP_STATUS[reason] ?? "DELAYED";
         await setProjectStatus(tx, block.projectId, block.project.status, next, user.id, CONDITION_REASON_LABEL[reason]);
       }
-      await log(tx, user, blockId, "CONDITIONS", `${block.project.name} — ${block.project.city}: ${summary}`, note);
+      await log(tx, user, blockId, "CONDITIONS", `${projectLabel(block.project)}: ${summary}`, note);
     });
     return { ok: true, message: canProceed ? "Sent to the office. Keep going!" : "Sent. The office will reschedule the rest." };
   });
@@ -155,7 +156,7 @@ export async function completeJob(form: FormData): Promise<FieldResult> {
     const note = (form.get("note") as string | null)?.trim() || null;
     if (!allDone && (remainingHours === null || remainingHours <= 0)) throw new Error("About how many hours are left?");
 
-    const label = `${block.project.name} — ${block.project.city}`;
+    const label = `${projectLabel(block.project)}`;
     const summary = allDone
       ? `✅ Job complete${hoursWorked !== null ? ` (${hoursWorked} hrs on this visit)` : ""}.`
       : `⏸ Partially complete — ${percentComplete}% done, about ${remainingHours} hrs remaining${hoursWorked !== null ? ` (${hoursWorked} hrs on this visit)` : ""}.`;
@@ -186,7 +187,7 @@ export async function addFieldNote(form: FormData): Promise<FieldResult> {
     if (!body) throw new Error("Type a note first.");
     const delay = form.get("kind") === "DELAY";
     await db.projectNote.create({ data: { projectId: block.projectId, blockId, authorId: user.id, kind: delay ? "DELAY" : "NOTE", body: delay ? `⏱ Running late: ${body}` : body } });
-    if (delay) await db.auditLog.create({ data: { actorId: user.id, entityType: "ScheduleBlock", entityId: blockId, action: "DELAY", summary: `${user.name} reported a delay on ${block.project.name} — ${block.project.city}`, reason: body } });
+    if (delay) await db.auditLog.create({ data: { actorId: user.id, entityType: "ScheduleBlock", entityId: blockId, action: "DELAY", summary: `${user.name} reported a delay on ${projectLabel(block.project)}`, reason: body } });
     return { ok: true, message: "Note sent to the office." };
   });
 }

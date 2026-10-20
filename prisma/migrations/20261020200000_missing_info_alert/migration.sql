@@ -1,0 +1,3 @@
+-- AlterEnum
+ALTER TYPE "AlertKind" ADD VALUE 'MISSING_INFO';
+

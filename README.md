@@ -10,9 +10,9 @@ See [docs/PLAN.md](docs/PLAN.md) for the full plan and phase status, and [docs/D
 
 | Screen | URL | What it does |
 |---|---|---|
-| Inbox (scheduler home) | `/` | New jobs waiting for a requested date, alerts (rain, cold, wind, conflicts, jobs that can't fit), what the auto-scheduler changed and why, then today's overview |
+| Inbox (scheduler home) | `/` | New jobs waiting for a requested date, alerts (rain, cold, wind, conflicts, jobs that can't fit, jobs missing an address, type of work or crew), what the auto-scheduler changed and why, then today's overview |
 | Accept a job (estimator home) | `/jobs/new` | Upload the work order; the app reads job name, address, materials and dates (Claude) for the estimator to check and accept |
-| Import from Google Calendar | `/import` | Upload Google Calendar's export (.zip or .ics). The app lists the upcoming jobs it found; untick anything that isn't a job and import. Each event becomes a locked, committed day on the schedule, with crew named in the event or calendar. Safe to run again |
+| Import from Google Calendar | `/import` | Upload Google Calendar's export (.zip or .ics). The app lists the upcoming jobs it found; untick anything that isn't a job and import. Each event becomes a locked, committed day on the schedule, with crew named in the event or calendar. Events with only a job name import too. Safe to run again |
 | Settings | `/settings` | Weather limits per type of work, workday hours, frozen days, planning horizon |
 | TO DO board | `/todo` | Every open project as a card, with 12 filters, sorting, and grouping by location |
 | Scheduling board | `/board` | Drag-and-drop week and day views. Rows for each person and each piece of equipment. Tentative vs committed. Conflict checks run live |

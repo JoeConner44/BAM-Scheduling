@@ -58,7 +58,7 @@ export default async function ImportPage({ searchParams }: PageProps<"/import">)
         </ol>
         <p className="text-slate-500">
           Only events from today on are imported. Events with the same title become one job with several days. If a calendar or event mentions a person by the name
-          they have on the People page, they&apos;re put on that day&apos;s crew. Importing the same file again won&apos;t create duplicates.
+          they have on the People page, they&apos;re put on that day&apos;s crew. Importing the same file again won&apos;t create duplicates. If an event is just a job name, that&apos;s fine: the Inbox will remind you to add the address, type of work and crew.
         </p>
       </section>
 

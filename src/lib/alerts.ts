@@ -1,11 +1,14 @@
 import "server-only";
 import type { AlertKind } from "@prisma/client";
-import { loadSnapshot } from "./data";
+import { loadSnapshot, projectLabel } from "./data";
 import { db } from "./db";
 import { checkAll, isLive } from "./engine/conflicts";
 import { checkWindow, indexHours, ruleFor } from "./weather/rules";
 import type { PlannedBlock, Unplaced } from "./planner/plan";
-import { dateToDay, dayToDate, fmtDay, fmtRange, type Day } from "./time";
+import { addDays, dateToDay, dayToDate, fmtDay, fmtRange, type Day } from "./time";
+
+/** Days without a crew are flagged this many days ahead. */
+const MISSING_CREW_DAYS = 14;
 
 export interface PlanChange {
   projectId: string;
@@ -117,9 +120,44 @@ export async function refreshAlerts(ctx: {
       key: `newjob:${p.id}`,
       kind: "NEW_JOB",
       severity: "info",
-      title: `🆕 New job: ${p.name} — ${p.city}`,
+      title: `🆕 New job: ${projectLabel(p)}`,
       message: "Accepted. Enter the customer's requested date and the app will schedule it.",
       projectId: p.id,
+    });
+  }
+
+  // Jobs missing what the app needs to schedule them well (e.g. imported from a calendar with only a name).
+  const crewSoon = addDays(today, MISSING_CREW_DAYS);
+  const open = await db.project.findMany({
+    where: { status: { notIn: ["COMPLETE", "CANCELLED"] } },
+    select: {
+      id: true,
+      name: true,
+      city: true,
+      jobTypeId: true,
+      blocks: {
+        where: { day: { gte: dayToDate(today) }, progress: { in: ["PLANNED", "ACTIVE", "PAUSED"] } },
+        orderBy: { day: "asc" },
+        select: { day: true, _count: { select: { assignments: true } } },
+      },
+    },
+  });
+  for (const p of open) {
+    const noCrew = [...new Set(p.blocks.filter((b) => b._count.assignments === 0 && dateToDay(b.day) <= crewSoon).map((b) => dateToDay(b.day)))];
+    const missing = [
+      !p.city.trim() && "where the job is (for weather and drive times)",
+      !p.jobTypeId && "the type of work (sets its weather limits)",
+      noCrew.length > 0 && `the crew for ${noCrew.slice(0, 4).map(fmtDay).join(", ")}${noCrew.length > 4 ? ", …" : ""}`,
+    ].filter((x): x is string => !!x);
+    if (!missing.length) continue;
+    drafts.push({
+      key: `missing:${p.id}`,
+      kind: "MISSING_INFO",
+      severity: "warning",
+      title: `📝 Missing information: ${projectLabel(p)}`,
+      message: `Add ${missing.join("; ")}.`,
+      projectId: p.id,
+      day: p.blocks[0] ? dateToDay(p.blocks[0].day) : undefined,
     });
   }
 

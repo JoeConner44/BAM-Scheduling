@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { EquipmentType, Prisma, Priority, ProjectStatus, WeatherSensitivity } from "@prisma/client";
 import { authorize, OFFICE } from "@/lib/auth";
-import { ensureLocation } from "@/lib/data";
+import { ensureLocation, projectLabel } from "@/lib/data";
 import { db } from "@/lib/db";
 import { geocodeAddress } from "@/lib/geocode";
 import { replan } from "@/lib/planner/run";
@@ -174,7 +174,7 @@ export async function changeProjectStatus(form: FormData) {
         entityType: "Project",
         entityId: id,
         action: "STATUS",
-        summary: `${project.name} — ${project.city}: ${PROJECT_STATUS_LABEL[project.status]} → ${PROJECT_STATUS_LABEL[status]}`,
+        summary: `${projectLabel(project)}: ${PROJECT_STATUS_LABEL[project.status]} → ${PROJECT_STATUS_LABEL[status]}`,
         reason,
       },
     });
@@ -212,7 +212,7 @@ export async function deleteProject(form: FormData) {
   const project = await db.project.findUniqueOrThrow({ where: { id } });
   await db.$transaction([
     db.project.delete({ where: { id } }),
-    db.auditLog.create({ data: { actorId: user.id, entityType: "Project", entityId: id, action: "DELETE", summary: `Deleted project ${project.name} — ${project.city}` } }),
+    db.auditLog.create({ data: { actorId: user.id, entityType: "Project", entityId: id, action: "DELETE", summary: `Deleted project ${projectLabel(project)}` } }),
   ]);
   await replan("project deleted", user.id);
   revalidatePath("/", "layout");

@@ -254,35 +254,50 @@ test("owner edits and deletes people and logins, but can't remove the last owner
   await expect(page.getByRole("button", { name: /Erin Estimator/ })).toHaveCount(0);
 });
 
-test("importing jobs from a Google Calendar export", async ({ page }) => {
+test("importing jobs from a Google Calendar export, then filling in what's missing", async ({ page }) => {
   const file = "e2e/fixtures/google-calendar.ics";
   await page.goto("/todo");
   await page.getByRole("link", { name: /Import from Google Calendar/ }).click();
   await page.locator('input[name="calendar"]').setInputFiles(file);
   await page.getByRole("button", { name: "Read calendar" }).click();
 
-  // The old event is skipped; the dentist appointment isn't a job, so untick it.
+  // The old event is skipped. Taco Bell has only a name on the calendar; it imports anyway.
   const rows = page.getByTestId("import-row");
   await expect(rows).toHaveCount(3);
   await expect(page.getByText("Old job last month")).toHaveCount(0);
   await expect(rows.filter({ hasText: "Waffle House Bogart" })).toContainText("crew: John");
-  await page.getByLabel("Import Dentist").uncheck();
-  // The dentist has no address, but unticked rows don't need one.
-  await page.getByRole("button", { name: "Import 2 jobs" }).click();
-  await expect(page.getByRole("status")).toContainText("Imported 2 new jobs — 3 days on the schedule");
+  await page.getByRole("button", { name: "Import 3 jobs" }).click();
+  await expect(page.getByRole("status")).toContainText("Imported 3 new jobs — 4 days on the schedule");
 
   // They're on the board where the calendar had them, locked in, with the crew it named.
   await page.goto("/board");
   await expect(block(jobsCell(page, D2), "Waffle House Bogart — Bogart")).toBeVisible();
   await expect(block(jobsCell(page, D3), "Walmart Commerce — Commerce")).toBeVisible();
   await expect(block(jobsCell(page, D4), "Walmart Commerce — Commerce")).toBeVisible();
+  await expect(block(jobsCell(page, D3), "Taco Bell")).toBeVisible();
   await expect(personCell(page, "John", D2)).toContainText("Waffle House");
   await expect(personCell(page, "Luis", D3)).toContainText("Walmart");
+
+  // The Inbox asks for what's missing, and updates as it's filled in.
+  await page.goto("/");
+  const notice = page.getByRole("listitem").filter({ hasText: "Missing information: Taco Bell" });
+  await expect(notice).toContainText("where the job is");
+  await expect(notice).toContainText("the type of work");
+  await expect(notice).toContainText("the crew for Tue 9/29");
+  await notice.getByRole("link", { name: "Fill it in →" }).click();
+  await page.locator('input[name="city"]').fill("Athens");
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await page.waitForURL(/\/projects\/[^/]+$/);
+  await page.goto("/");
+  // The city is in; the type of work and crew are still asked for.
+  await expect(notice).toContainText("Taco Bell — Athens");
+  await expect(notice).not.toContainText("where the job is");
+  await expect(notice).toContainText("the type of work");
 
   // Importing the same file again doesn't duplicate anything.
   await page.goto("/import");
   await page.locator('input[name="calendar"]').setInputFiles(file);
   await page.getByRole("button", { name: "Read calendar" }).click();
   await expect(rows.filter({ hasText: "Waffle House Bogart" })).toContainText("already imported");
-  await expect(page.getByRole("button", { name: "Import 1 job" })).toBeVisible(); // only the dentist is still ticked
+  await expect(page.getByRole("button", { name: "Import 0 jobs" })).toBeDisabled();
 });

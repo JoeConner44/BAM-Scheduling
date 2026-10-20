@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { EquipmentType, Priority, WeatherSensitivity } from "@prisma/client";
 import { authorize, OFFICE } from "@/lib/auth";
-import { ensureLocation } from "@/lib/data";
+import { ensureLocation, projectLabel } from "@/lib/data";
 import { db } from "@/lib/db";
 import { geocodeAddress } from "@/lib/geocode";
 import { EQUIPMENT_TYPE_LABEL, PRIORITY_LABEL } from "@/lib/labels";
@@ -146,7 +146,7 @@ export async function setRequestedDate(form: FormData) {
   if (!isDay(value)) return;
   const p = await db.project.update({ where: { id: projectId }, data: { requestedDate: dayToDate(value) } });
   await db.auditLog.create({
-    data: { actorId: user.id, entityType: "Project", entityId: projectId, action: "REQUESTED_DATE", summary: `Requested date for ${p.name} — ${p.city}: ${fmtDay(value)}` },
+    data: { actorId: user.id, entityType: "Project", entityId: projectId, action: "REQUESTED_DATE", summary: `Requested date for ${projectLabel(p)}: ${fmtDay(value)}` },
   });
   await replan("requested date set", user.id);
   revalidatePath("/", "layout");
