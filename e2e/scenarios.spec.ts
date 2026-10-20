@@ -217,3 +217,39 @@ test("estimator accepts a job; the app schedules it around rain and cold", async
   await page.goto(`/board?view=day&date=2026-09-29`);
   await expect(page.locator('[data-drag="block"][data-label="Tractor Supply — Athens"]')).toContainText("Tractor Supply");
 });
+
+test("owner edits and deletes people and logins, but can't remove the last owner", async ({ page }) => {
+  page.on("dialog", (d) => d.accept());
+  await page.goto("/employees");
+
+  // Rename the scheduler and make her an estimator.
+  const dana = page.locator("li", { hasText: "Dana Dispatcher" });
+  await dana.getByText("Edit", { exact: true }).click();
+  await dana.getByLabel("Name for Dana Dispatcher").fill("Dana Smith");
+  await dana.getByLabel("Role for Dana Dispatcher").selectOption("ESTIMATOR");
+  await dana.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Saved Dana Smith.")).toBeVisible();
+  await expect(page.locator("li", { hasText: "Dana Smith" })).toContainText("Estimator");
+
+  // The only owner can't demote themself.
+  const pat = page.locator("li", { hasText: "Pat Owner" });
+  await pat.getByText("Edit", { exact: true }).click();
+  await pat.getByLabel("Role for Pat Owner").selectOption("DISPATCHER");
+  await pat.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Pat Owner is the only owner. Make someone else an owner first.")).toBeVisible();
+  await expect(page.locator("li", { hasText: "Pat Owner" }).getByRole("button", { name: "Delete" })).toHaveCount(0); // no deleting yourself
+
+  // Delete an office login.
+  await page.locator("li", { hasText: "Erin Estimator" }).getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByText("Deleted Erin Estimator.")).toBeVisible();
+
+  // Delete a crew member: gone from People, the board, and the sign-in list.
+  await page.getByRole("link", { name: /^Jo\s*John/ }).click();
+  await page.getByRole("button", { name: /Delete John/ }).click();
+  await expect(page.getByText("Deleted John.")).toBeVisible();
+  await page.goto("/board");
+  await expect(personCell(page, "John", D0)).toHaveCount(0);
+  await page.goto("/login");
+  await expect(page.getByRole("button", { name: /^John\b/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Erin Estimator/ })).toHaveCount(0);
+});

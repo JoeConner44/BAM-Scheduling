@@ -6,7 +6,7 @@ import type { EmployeeStatus, EquipmentStatus, EquipmentType, Prisma, TimeOffTyp
 import { authorize, OFFICE } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { replan } from "@/lib/planner/run";
-import { EMPLOYEE_STATUS_LABEL, EQUIPMENT_STATUS_LABEL, EQUIPMENT_TYPE_LABEL, TIME_OFF_LABEL } from "@/lib/labels";
+import { EMPLOYEE_STATUS_LABEL, EQUIPMENT_STATUS_LABEL, EQUIPMENT_TYPE_LABEL, ROLE_LABEL, TIME_OFF_LABEL } from "@/lib/labels";
 import { dayToDate, fmtDay, fmtRange, isDay, parseHHMM, today } from "@/lib/time";
 import type { FormState } from "./projects";
 
@@ -252,6 +252,83 @@ export async function setOfficeUserActive(form: FormData) {
   const target = await db.user.update({ where: { id }, data: { active } });
   await db.auditLog.create({ data: { actorId: user.id, entityType: "User", entityId: id, action: active ? "ENABLE" : "DISABLE", summary: `${active ? "Re-enabled" : "Turned off"} login for ${target.name}` } });
   revalidatePath("/", "layout");
+}
+
+const OFFICE_ROLES = ["OWNER", "DISPATCHER", "ESTIMATOR"] as const;
+type OfficeRole = (typeof OFFICE_ROLES)[number];
+
+function back(message: string, tone: "ok" | "error" = "ok"): never {
+  redirect(`/employees?${tone === "ok" ? "notice" : "error"}=${encodeURIComponent(message)}`);
+}
+
+/** True when removing or demoting this user would leave nobody able to run the app. */
+async function isLastOwner(userId: string) {
+  const owners = await db.user.findMany({ where: { role: "OWNER", active: true }, select: { id: true } });
+  return owners.length <= 1 && owners.some((o) => o.id === userId);
+}
+
+/** Owner only: rename an office login or change its role. */
+export async function updateOfficeUser(form: FormData) {
+  const me = await authorize(["OWNER"]);
+  const id = String(form.get("id"));
+  const name = str(form, "name");
+  const role = str(form, "role") as OfficeRole | null;
+  if (!name || !role || !OFFICE_ROLES.includes(role)) back("Name and role are required.", "error");
+  const target = await db.user.findUnique({ where: { id } });
+  if (!target || target.role === "FIELD") back("That login no longer exists.", "error");
+  if (target.role === "OWNER" && role !== "OWNER" && (await isLastOwner(id))) {
+    back(`${target.name} is the only owner. Make someone else an owner first.`, "error");
+  }
+  await db.$transaction([
+    db.user.update({ where: { id }, data: { name, role } }),
+    db.auditLog.create({
+      data: {
+        actorId: me.id,
+        entityType: "User",
+        entityId: id,
+        action: "UPDATE",
+        summary: `Updated login ${target.name}${target.name !== name ? ` → ${name}` : ""} (${ROLE_LABEL[role]})`,
+      },
+    }),
+  ]);
+  revalidatePath("/", "layout");
+  back(`Saved ${name}.`);
+}
+
+/** Owner only: delete an office login. History they wrote stays (without their name attached). */
+export async function deleteOfficeUser(form: FormData) {
+  const me = await authorize(["OWNER"]);
+  const id = String(form.get("id"));
+  if (id === me.id) back("You can't delete your own login. Ask another owner.", "error");
+  const target = await db.user.findUnique({ where: { id } });
+  if (!target || target.role === "FIELD") back("That login no longer exists.", "error");
+  if (await isLastOwner(id)) back(`${target.name} is the only owner and can't be deleted.`, "error");
+  await db.$transaction([
+    db.user.delete({ where: { id } }),
+    db.auditLog.create({ data: { actorId: me.id, entityType: "User", entityId: id, action: "DELETE", summary: `Deleted login for ${target.name} (${ROLE_LABEL[target.role]})` } }),
+  ]);
+  revalidatePath("/", "layout");
+  back(`Deleted ${target.name}.`);
+}
+
+/**
+ * Delete a crew member and their phone login. Their time off and skills go with them, and
+ * they're taken off every job they were on (the app re-plans its own jobs; locked ones show
+ * as short-staffed). Past history stays.
+ */
+export async function deleteEmployee(form: FormData) {
+  const me = await authorize(OFFICE);
+  const id = String(form.get("employeeId"));
+  const employee = await db.employee.findUnique({ where: { id } });
+  if (!employee) back("That person no longer exists.", "error");
+  await db.$transaction([
+    db.user.deleteMany({ where: { employeeId: id } }),
+    db.employee.delete({ where: { id } }),
+    db.auditLog.create({ data: { actorId: me.id, entityType: "Employee", entityId: id, action: "DELETE", summary: `Deleted ${employee.name} (${employee.position ?? "crew"})` } }),
+  ]);
+  await replan("person deleted", me.id);
+  revalidatePath("/", "layout");
+  back(`Deleted ${employee.name}.`);
 }
 
 export async function addSkill(form: FormData) {
