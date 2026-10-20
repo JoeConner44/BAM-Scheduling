@@ -53,6 +53,7 @@ export async function saveSchedulingSettings(form: FormData) {
     lockDays: int(form, "lockDays", 0, 10) ?? DEFAULT_SCHEDULING.lockDays,
     horizonDays: (int(form, "horizonWeeks", 1, 12) ?? 5) * 7,
     workSaturdays: form.get("workSaturdays") === "on",
+    spreadDays: int(form, "spreadDays", 0, 30) ?? DEFAULT_SCHEDULING.spreadDays,
   };
   await writeJson("scheduling", settings);
   await db.auditLog.create({ data: { actorId: user.id, entityType: "Settings", entityId: "scheduling", action: "UPDATE", summary: "Scheduling settings changed" } });

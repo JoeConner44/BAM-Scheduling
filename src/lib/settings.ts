@@ -17,6 +17,8 @@ export interface SchedulingSettings {
   /** How far ahead the auto-scheduler plans, in calendar days. */
   horizonDays: number;
   workSaturdays: boolean;
+  /** How many work days before or after the requested date the app may move a job to even out the workload. */
+  spreadDays: number;
 }
 
 export const DEFAULT_SCHEDULING: SchedulingSettings = {
@@ -25,6 +27,7 @@ export const DEFAULT_SCHEDULING: SchedulingSettings = {
   lockDays: 1,
   horizonDays: 35,
   workSaturdays: false,
+  spreadDays: 10,
 };
 
 async function readJson<T>(key: string, fallback: T): Promise<T> {

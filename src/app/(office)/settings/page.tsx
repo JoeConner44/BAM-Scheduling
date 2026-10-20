@@ -89,7 +89,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         <div>
           <h2 className="text-lg font-bold">🤖 Auto-scheduling</h2>
           <p className="text-sm text-slate-500">
-            The app places every accepted job with a requested date, and re-plans after every change. It never moves work that someone placed by hand, locked or confirmed.
+            The app places every accepted job with a requested date on the least busy workable day near that date, and re-plans after every change. It never moves
+            work that someone placed by hand, locked or confirmed.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-4">
@@ -109,6 +110,11 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           <label>
             <span className="label">Plan ahead (weeks)</span>
             <input type="number" name="horizonWeeks" min={1} max={12} className="input" defaultValue={Math.round(sched.horizonDays / 7)} />
+          </label>
+          <label>
+            <span className="label">Spread jobs up to (work days)</span>
+            <input type="number" name="spreadDays" min={0} max={30} className="input" defaultValue={sched.spreadDays} />
+            <span className="text-xs text-slate-500">How far before or after the requested date the app may move a job to a less busy day. 0 keeps jobs on their date.</span>
           </label>
         </div>
         <label className="flex items-center gap-2 text-sm">

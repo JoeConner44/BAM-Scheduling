@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { removeImportedJobs } from "@/app/actions/import";
 import { CalendarImport } from "@/components/CalendarImport";
+import { ConfirmButton } from "@/components/ConfirmButton";
 import { OFFICE, requireUser } from "@/lib/auth";
+import { db } from "@/lib/db";
 
 export const metadata = { title: "Import from Google Calendar · BAM Scheduling" };
 
@@ -9,8 +12,12 @@ export default async function ImportPage({ searchParams }: PageProps<"/import">)
   const sp = await searchParams;
   const n = (k: string) => (typeof sp[k] === "string" ? Number(sp[k]) || 0 : null);
   const created = n("created");
-  const updated = n("updated") ?? 0;
-  const blocks = n("blocks") ?? 0;
+  const booked = n("booked") ?? 0;
+  const removed = n("removed");
+  const kept = n("kept") ?? 0;
+  const imported = await db.project.count({
+    where: { OR: [{ externalRefs: { isEmpty: false } }, { blocks: { some: { externalRef: { not: null } } } }] },
+  });
 
   return (
     <main className="mx-auto max-w-5xl space-y-4 p-3 sm:p-6">
@@ -21,16 +28,20 @@ export default async function ImportPage({ searchParams }: PageProps<"/import">)
 
       {created !== null && (
         <div className="card border-l-8 border-emerald-500 p-4" role="status">
-          {blocks ? (
+          {created ? (
             <>
               <div className="font-bold">
-                ✅ Imported {created} new job{created === 1 ? "" : "s"}
-                {updated ? `, added days to ${updated} existing job${updated === 1 ? "" : "s"}` : ""} — {blocks} day{blocks === 1 ? "" : "s"} on the schedule.
+                ✅ Imported {created} job{created === 1 ? "" : "s"}.
               </div>
               <div className="text-sm text-slate-600">
-                They&apos;re locked in where they were on the calendar. The app will warn you about weather or double-booking. See them on the{" "}
+                The app put each one on the least busy day it could find in its window
+                {booked ? ` (${booked} in the next few days were kept where the calendar had them, since crews already know)` : ""}. See them on the{" "}
                 <Link href="/board" className="font-semibold underline">
                   Schedule
+                </Link>
+                . Anything it couldn&apos;t fit, or that&apos;s missing information, is in the{" "}
+                <Link href="/" className="font-semibold underline">
+                  Inbox
                 </Link>
                 .
               </div>
@@ -38,6 +49,14 @@ export default async function ImportPage({ searchParams }: PageProps<"/import">)
           ) : (
             <div className="font-bold">Nothing new to import. Those calendar events are already in the app.</div>
           )}
+        </div>
+      )}
+      {removed !== null && (
+        <div className="card border-l-8 border-sky-500 p-4" role="status">
+          <div className="font-bold">
+            Removed {removed} imported job{removed === 1 ? "" : "s"}.{kept ? ` Kept ${kept} that the crew has already started or reported on.` : ""}
+          </div>
+          <div className="text-sm text-slate-600">Upload the calendar again below to import it with the current rules.</div>
         </div>
       )}
 
@@ -57,12 +76,29 @@ export default async function ImportPage({ searchParams }: PageProps<"/import">)
           <li>Upload that .zip below (no need to unzip it). One calendar&apos;s .ics file works too.</li>
         </ol>
         <p className="text-slate-500">
-          Only events from today on are imported. Events with the same title become one job with several days. If a calendar or event mentions a person by the name
-          they have on the People page, they&apos;re put on that day&apos;s crew. Importing the same file again won&apos;t create duplicates. If an event is just a job name, that&apos;s fine: the Inbox will remind you to add the address, type of work and crew.
+          Every calendar entry is a one-day job unless its title or notes say otherwise (&ldquo;3 days&rdquo;). If an entry covers several days, the job can be done on
+          any of them: the app picks the least busy one. Only entries from today on are imported, and importing the same file again won&apos;t create duplicates.
+          If an entry mentions someone by the name they have on the People page, the job&apos;s crew size is set to match. If it&apos;s just a job name, that&apos;s
+          fine: the Inbox will remind you to add the address and type of work.
         </p>
       </section>
 
       <CalendarImport />
+
+      {imported > 0 && (
+        <section className="card space-y-2 p-4 text-sm">
+          <h2 className="font-bold">Start the import over</h2>
+          <p className="text-slate-600">
+            {imported} job{imported === 1 ? " is" : "s are"} in the app from an earlier import. Remove them to import the calendar again with the current rules. Jobs
+            the crew has started or reported on are kept.
+          </p>
+          <form action={removeImportedJobs}>
+            <ConfirmButton className="btn-secondary text-red-700" message={`Remove the ${imported} job(s) imported from Google Calendar? Jobs already started are kept.`}>
+              Remove imported jobs
+            </ConfirmButton>
+          </form>
+        </section>
+      )}
     </main>
   );
 }

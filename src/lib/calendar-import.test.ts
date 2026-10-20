@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { zipSync, strToU8 } from "fflate";
-import { groupEvents, icsTextsFromUpload, mentionedEmployees, parseAddress, parseIcs } from "./calendar-import";
+import { daysNoted, groupEvents, icsTextsFromUpload, mentionedEmployees, parseAddress, parseIcs } from "./calendar-import";
 
 // Shaped like a Google Calendar export.
 const ICS = `BEGIN:VCALENDAR
@@ -108,12 +108,30 @@ describe("Google Calendar import", () => {
     expect(events.some((e) => e.summary === "Cancelled thing" || e.summary === "Old job")).toBe(false);
   });
 
-  it("groups same-title events into one job with the address and hours", () => {
+  it("makes each event a one-day job; a span of days is when it may be done", () => {
     const groups = groupEvents(events);
-    const kroger = groups.find((g) => g.name.startsWith("Kroger"))!;
-    expect(kroger).toMatchObject({ street: "1720 Epps Bridge Pkwy", city: "Athens", state: "GA", zip: "30606", hours: 6, notes: "Restripe 220 stalls" });
-    expect(kroger.events).toHaveLength(2);
+    const krogers = groups.filter((g) => g.name.startsWith("Kroger"));
+    expect(krogers.length).toBeGreaterThan(0);
+    expect(krogers[0]).toMatchObject({ street: "1720 Epps Bridge Pkwy", city: "Athens", state: "GA", zip: "30606", notes: "Restripe 220 stalls" });
     expect(groups.find((g) => g.name.startsWith("Maple"))).toMatchObject({ city: "Lawrenceville", street: "" });
+
+    const ev = (summary: string, day: string, description = "") => ({ ref: `${summary}#${day}`, summary, location: "", description, day, startMin: 480, endMin: 600, allDay: false });
+    const jobs = groupEvents([
+      ev("Publix", "2026-10-26"), // Mon
+      ev("Publix", "2026-11-09"), // two weeks later: a separate visit
+      ev("Walmart", "2026-10-30"), // Fri …
+      ev("Walmart", "2026-11-02"), // … and Mon: back-to-back, one job
+      ev("School lot", "2026-10-27", "Sealcoat, 3 days"),
+    ]);
+    expect(jobs.map((j) => [j.name, j.firstDay, j.lastDay, j.days])).toEqual([
+      ["Publix", "2026-10-26", "2026-10-26", 1],
+      ["School lot", "2026-10-27", "2026-10-27", 3],
+      ["Walmart", "2026-10-30", "2026-11-02", 1],
+      ["Publix", "2026-11-09", "2026-11-09", 1],
+    ]);
+    expect(daysNoted("2-day job")).toBe(2);
+    expect(daysNoted("two days")).toBe(2);
+    expect(daysNoted("Kroger 220 stalls")).toBeNull();
   });
 
   it("parses addresses and finds crew names", () => {

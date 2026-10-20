@@ -300,6 +300,8 @@ model Project {
   jobTypeId              String?
   jobType                JobType?           @relation(fields: [jobTypeId], references: [id])
   scope                  String?
+  /// Calendar events this job was imported from, so importing again doesn't duplicate it.
+  externalRefs           String[]           @default([])
   estTotalHours          Float
   estCrewSize            Int                @default(2)
   earliestDate           DateTime?          @db.Date
