@@ -125,6 +125,9 @@ export function TodoBoard({ cards, today, initial }: { cards: ProjectCardData[];
           </p>
         </div>
         <div className="flex gap-2">
+          <Link href="/import" className="btn-secondary">
+            📆 Import from Google Calendar
+          </Link>
           <Link href="/board" className="btn-primary">
             Schedule on the board →
           </Link>

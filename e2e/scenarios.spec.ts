@@ -1,7 +1,7 @@
 // The first real-world test (spec §26), run against the sample data in prisma/seed.ts.
 // Today is pinned to Thu 2026-09-24.
 import { expect, test } from "@playwright/test";
-import { D0, D1, D2, D4, block, drag, expectNoDialog, jobsCell, login, personCell, reseed, unitCell, waitForSaved } from "./helpers";
+import { D0, D1, D2, D3, D4, block, drag, expectNoDialog, jobsCell, login, personCell, reseed, unitCell, waitForSaved } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   reseed();
@@ -252,4 +252,37 @@ test("owner edits and deletes people and logins, but can't remove the last owner
   await page.goto("/login");
   await expect(page.getByRole("button", { name: /^John\b/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Erin Estimator/ })).toHaveCount(0);
+});
+
+test("importing jobs from a Google Calendar export", async ({ page }) => {
+  const file = "e2e/fixtures/google-calendar.ics";
+  await page.goto("/todo");
+  await page.getByRole("link", { name: /Import from Google Calendar/ }).click();
+  await page.locator('input[name="calendar"]').setInputFiles(file);
+  await page.getByRole("button", { name: "Read calendar" }).click();
+
+  // The old event is skipped; the dentist appointment isn't a job, so untick it.
+  const rows = page.getByTestId("import-row");
+  await expect(rows).toHaveCount(3);
+  await expect(page.getByText("Old job last month")).toHaveCount(0);
+  await expect(rows.filter({ hasText: "Waffle House Bogart" })).toContainText("crew: John");
+  await page.getByLabel("Import Dentist").uncheck();
+  // The dentist has no address, but unticked rows don't need one.
+  await page.getByRole("button", { name: "Import 2 jobs" }).click();
+  await expect(page.getByRole("status")).toContainText("Imported 2 new jobs — 3 days on the schedule");
+
+  // They're on the board where the calendar had them, locked in, with the crew it named.
+  await page.goto("/board");
+  await expect(block(jobsCell(page, D2), "Waffle House Bogart — Bogart")).toBeVisible();
+  await expect(block(jobsCell(page, D3), "Walmart Commerce — Commerce")).toBeVisible();
+  await expect(block(jobsCell(page, D4), "Walmart Commerce — Commerce")).toBeVisible();
+  await expect(personCell(page, "John", D2)).toContainText("Waffle House");
+  await expect(personCell(page, "Luis", D3)).toContainText("Walmart");
+
+  // Importing the same file again doesn't duplicate anything.
+  await page.goto("/import");
+  await page.locator('input[name="calendar"]').setInputFiles(file);
+  await page.getByRole("button", { name: "Read calendar" }).click();
+  await expect(rows.filter({ hasText: "Waffle House Bogart" })).toContainText("already imported");
+  await expect(page.getByRole("button", { name: "Import 1 job" })).toBeVisible(); // only the dentist is still ticked
 });
