@@ -20,7 +20,7 @@ export interface CalendarEvent {
 }
 
 export interface ImportGroup {
-  /** Events with the same title become one job with several days. */
+  /** Back-to-back events with the same title are one job that can be done on any of those days. */
   key: string;
   name: string;
   street: string;
@@ -28,7 +28,11 @@ export interface ImportGroup {
   state: string;
   zip: string;
   notes: string;
-  hours: number;
+  /** Work days the job takes: 1 unless the notes say otherwise ("3 days"). */
+  days: number;
+  /** The days it may be done on (the span of its events). */
+  firstDay: Day;
+  lastDay: Day;
   events: CalendarEvent[];
 }
 
@@ -148,28 +152,59 @@ export function parseAddress(location: string): { street: string; city: string; 
 
 const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
-/** Same title = same job (e.g. "Kroger Athens" on Mon and Tue → one job, two days). */
+const NUMBER_WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+
+/** "3 days", "2-day job", "two days" in the title or notes → that many days. */
+export function daysNoted(text: string): number | null {
+  const m = text.toLowerCase().match(/\b(\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten)[\s-]*days?\b/);
+  if (!m) return null;
+  const n = NUMBER_WORDS[m[1]] ?? Number(m[1]);
+  return n >= 1 && n <= 30 ? n : null;
+}
+
+/** The next work day after `day` (Mon–Fri). */
+const nextWorkday = (day: Day) => {
+  let d = addDays(day, 1);
+  while (dayOfWeek(d) === 0 || dayOfWeek(d) === 6) d = addDays(d, 1);
+  return d;
+};
+
+/**
+ * Every event is its own one-day job. An event spanning several days (or the same title on
+ * back-to-back work days) is still one day of work: those days are when it may be done.
+ * "3 days" in the title or notes makes it a longer job.
+ */
 export function groupEvents(events: CalendarEvent[]): ImportGroup[] {
-  const map = new Map<string, CalendarEvent[]>();
-  for (const e of events) {
-    const k = normalize(e.summary);
-    map.set(k, [...(map.get(k) ?? []), e]);
+  const sorted = [...events].sort((a, b) => a.day.localeCompare(b.day) || a.startMin - b.startMin);
+  const open = new Map<string, CalendarEvent[]>(); // title → the run of events it's currently extending
+  const runs: CalendarEvent[][] = [];
+  for (const e of sorted) {
+    const title = normalize(e.summary);
+    const run = open.get(title);
+    const lastDay = run?.[run.length - 1].day;
+    if (run && lastDay && (e.day === lastDay || e.day === nextWorkday(lastDay))) run.push(e);
+    else {
+      const fresh = [e];
+      runs.push(fresh);
+      open.set(title, fresh);
+    }
   }
-  return [...map.entries()]
-    .map(([key, evs]) => {
-      const withLocation = evs.find((e) => e.location);
-      const addr = parseAddress(withLocation?.location ?? "");
-      return {
-        key,
-        name: evs[0].summary,
-        ...addr,
-        state: addr.state || "GA",
-        notes: [...new Set(evs.map((e) => e.description).filter(Boolean))].join("\n\n").slice(0, 2000),
-        hours: Math.round((evs.reduce((s, e) => s + (e.endMin - e.startMin), 0) / 60) * 4) / 4,
-        events: evs,
-      };
-    })
-    .sort((a, b) => a.events[0].day.localeCompare(b.events[0].day));
+  return runs.map((evs) => {
+    const withLocation = evs.find((e) => e.location);
+    const addr = parseAddress(withLocation?.location ?? "");
+    const notes = [...new Set(evs.map((e) => e.description).filter(Boolean))].join("\n\n").slice(0, 2000);
+    return {
+      key: `${normalize(evs[0].summary)}|${evs[0].day}`,
+      name: evs[0].summary,
+      ...addr,
+      state: addr.state || "GA",
+      notes,
+      days: daysNoted(`${evs[0].summary} ${notes}`) ?? 1,
+      firstDay: evs[0].day,
+      lastDay: evs[evs.length - 1].day,
+      events: evs,
+    };
+  });
 }
 
 /** Crew names mentioned in the title or notes (e.g. "Kroger — John, David"). */

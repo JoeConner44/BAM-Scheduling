@@ -3,7 +3,7 @@
 import { useActionState, useState, useTransition } from "react";
 import clsx from "clsx";
 import { importCalendar, previewCalendar, type ImportState, type PreviewGroup, type PreviewResult } from "@/app/actions/import";
-import { fmtDay, fmtHours, fmtRange } from "@/lib/time";
+import { fmtDay } from "@/lib/time";
 
 type Row = PreviewGroup & { include: boolean };
 
@@ -18,13 +18,13 @@ export function CalendarImport() {
     startReading(async () => {
       const r = await previewCalendar(form);
       setResult(r);
-      setRows(r.ok ? r.groups.map((g) => ({ ...g, include: g.alreadyImported < g.slots.length })) : []);
+      setRows(r.ok ? r.groups.map((g) => ({ ...g, include: !g.alreadyImported })) : []);
     });
 
   const edit = (key: string, patch: Partial<Row>) => setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   const chosen = rows.filter((r) => r.include);
   const payload = JSON.stringify(
-    chosen.map((r) => ({ name: r.name, customer: r.customer || r.name, street: r.street, city: r.city, state: r.state, zip: r.zip, notes: r.notes, slots: r.slots })),
+    chosen.map((r) => ({ name: r.name, customer: r.customer || r.name, street: r.street, city: r.city, state: r.state, zip: r.zip, notes: r.notes, days: r.days, firstDay: r.firstDay, lastDay: r.lastDay, slots: r.slots })),
   );
 
   return (
@@ -40,8 +40,8 @@ export function CalendarImport() {
         {result && !result.ok && <p className="rounded-lg bg-amber-50 p-2 text-sm font-semibold text-amber-900">{result.error}</p>}
         {result?.ok && (
           <p className="text-sm text-slate-600">
-            Read {result.calendars.length} calendar{result.calendars.length === 1 ? "" : "s"} ({result.calendars.map((c) => `${c.name}: ${c.events}`).join(", ")}) from for
-            the next 12 months. Found {rows.length} possible job{rows.length === 1 ? "" : "s"}.
+            Read {result.calendars.length} calendar{result.calendars.length === 1 ? "" : "s"} ({result.calendars.map((c) => `${c.name}: ${c.events}`).join(", ")}) for the next
+            12 months. Found {rows.length} possible job{rows.length === 1 ? "" : "s"}.
           </p>
         )}
       </form>
@@ -63,7 +63,6 @@ export function CalendarImport() {
 
           <ul className="divide-y divide-slate-100">
             {rows.map((r) => {
-              const done = r.alreadyImported >= r.slots.length;
               return (
                 <li key={r.key} className={clsx("space-y-2 py-3", !r.include && "opacity-50")} data-testid="import-row">
                   <label className="flex items-start gap-2">
@@ -71,14 +70,10 @@ export function CalendarImport() {
                     <span className="min-w-0">
                       <span className="font-semibold">{r.name}</span>
                       <span className="block text-sm text-slate-500">
-                        {r.slots.length} day{r.slots.length === 1 ? "" : "s"} · {fmtHours(r.hours)} ·{" "}
-                        {r.slots
-                          .slice(0, 4)
-                          .map((s) => `${fmtDay(s.day)}${s.allDay ? "" : ` ${fmtRange(s.startMin, s.endMin)}`}`)
-                          .join(", ")}
-                        {r.slots.length > 4 ? ", …" : ""}
+                        {r.days} day{r.days === 1 ? "" : "s"} of work,{" "}
+                        {r.lastDay > r.firstDay ? `any day ${fmtDay(r.firstDay)} – ${fmtDay(r.lastDay)}` : `around ${fmtDay(r.firstDay)}`}
                         {r.crew.length > 0 && ` · crew: ${r.crew.join(", ")}`}
-                        {r.alreadyImported > 0 && <b className="text-emerald-700"> · {done ? "already imported" : `${r.alreadyImported} day(s) already imported`}</b>}
+                        {r.alreadyImported && <b className="text-emerald-700"> · already imported</b>}
                       </span>
                     </span>
                   </label>
@@ -93,13 +88,16 @@ export function CalendarImport() {
                       <Box label="Street" className="sm:col-span-2">
                         <input className="input" value={r.street} onChange={(e) => edit(r.key, { street: e.target.value })} placeholder="optional" />
                       </Box>
-                      <Box label="City" className="sm:col-span-3">
+                      <Box label="City" className="sm:col-span-2">
                         <input className="input" value={r.city} onChange={(e) => edit(r.key, { city: e.target.value })} placeholder="add later if you don't know" />
                       </Box>
                       <Box label="State">
                         <input className="input" value={r.state} maxLength={2} onChange={(e) => edit(r.key, { state: e.target.value.toUpperCase() })} />
                       </Box>
-                      <Box label="ZIP" className="sm:col-span-2">
+                      <Box label="Days of work">
+                        <input type="number" min={1} max={30} className="input" value={r.days} onChange={(e) => edit(r.key, { days: Math.max(1, Number(e.target.value) || 1) })} />
+                      </Box>
+                      <Box label="ZIP">
                         <input className="input" value={r.zip} onChange={(e) => edit(r.key, { zip: e.target.value })} />
                       </Box>
                     </div>

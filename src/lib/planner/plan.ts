@@ -7,10 +7,11 @@
 //   • a full crew that is free, working, not off, has the required skills, and can drive there
 //     from wherever they were before (and on to wherever they go next);
 //   • the required equipment, free and not in the shop;
-//   • then it scores each workable day: close to the customer's requested date, never after
-//     the deadline unless nothing else works, a bonus for crews already working nearby,
-//     and a small preference for keeping the day it picked last time (so the schedule
-//     doesn't churn).
+//   • then it scores each workable day: first the least busy day (fewest hours already
+//     booked) within `spreadDays` work days of the customer's requested date, then the one
+//     closest to that date; never after the deadline unless nothing else works, a bonus for
+//     crews already working nearby, and a small preference for keeping the day it picked
+//     last time (so the schedule doesn't churn).
 // Big jobs are split across several days, keeping the same crew when it can.
 
 import { estimateTravelMinutes } from "../geo";
@@ -80,6 +81,8 @@ export interface PlanInput {
   workdayStartMin: number;
   workdayEndMin: number;
   workSaturdays: boolean;
+  /** How many work days either side of the requested date a job may move to even out the workload. */
+  spreadDays?: number;
   travel?: { averageMph: number; roadFactor: number; minimumMinutes: number };
   employees: PlanEmployee[];
   equipment: PlanEquipment[];
@@ -114,6 +117,7 @@ export interface PlanResult {
 }
 
 const STEP = 30;
+const DEFAULT_SPREAD_DAYS = 10;
 const DEFAULT_TRAVEL = { averageMph: 40, roadFactor: 1.3, minimumMinutes: 10 };
 
 type FailReason = "weather" | "people" | "skills" | "equipment" | "time";
@@ -150,7 +154,12 @@ export function planSchedule(input: PlanInput): PlanResult {
       a.label.localeCompare(b.label),
   );
 
+  const spread = input.spreadDays ?? DEFAULT_SPREAD_DAYS;
+  const workdayGap = (a: Day, b: Day) => (a <= b ? 1 : -1) * (workDaysBetween(a < b ? a : b, a < b ? b : a, input.workSaturdays).length - 1);
+
   for (const job of jobs) {
+    // Not yet within reach of the planning window: it waits until its dates come closer.
+    if (days.length && workDaysBetween(input.lastDay, job.requestedDate, input.workSaturdays).length - 1 > spread) continue;
     let remaining = Math.max(0, Math.round((job.hoursNeeded * 60) / 15) * 15);
     let after: Day | null = null;
     let lastCrew: string[] = [];
@@ -226,12 +235,16 @@ export function planSchedule(input: PlanInput): PlanResult {
       // Score this day (lower is better).
       const why: string[] = [];
       const offset = daysBetween(job.requestedDate, day);
-      let score = offset < 0 ? -offset * 20 : offset * 10;
+      const gap = Math.abs(workdayGap(job.requestedDate, day));
+      // Even out the workload: hours already booked that day count most, then distance from the requested date.
+      const booked = busy.filter((b) => b.day === day && b.projectId !== job.id).reduce((s, b) => s + b.endMin - b.startMin, 0) / 60;
+      let score = booked * 10 + Math.abs(offset) * (offset < 0 ? 1.5 : 1) + Math.max(0, gap - spread) * 1000;
       if (offset === 0) why.push("customer's requested date");
       else why.push(`${Math.abs(offset)} day${Math.abs(offset) === 1 ? "" : "s"} ${offset < 0 ? "before" : "after"} the requested date`);
+      why.push(booked ? `${Math.round(booked * 10) / 10} hrs of other work booked that day` : "nothing else booked that day");
       const late = !!job.dueDate && day > job.dueDate;
       if (late) {
-        score += 1000;
+        score += 100_000;
         why.push(`after the due date (${fmtDay(job.dueDate!)})`);
       }
       const nearby = busy.some(

@@ -8,9 +8,9 @@ import { groupEvents, icsTextsFromUpload, mentionedEmployees, parseIcs, type Cal
 import { ensureLocation, projectLabel } from "@/lib/data";
 import { db } from "@/lib/db";
 import { geocodeAddress } from "@/lib/geocode";
-import { replan } from "@/lib/planner/run";
+import { planningWindow, replan } from "@/lib/planner/run";
 import { getSchedulingSettings } from "@/lib/settings";
-import { addDays, dayToDate, today } from "@/lib/time";
+import { addDays, dayToDate, fmtDay, today } from "@/lib/time";
 
 /** How far ahead to look in the calendar. */
 const IMPORT_MONTHS_AHEAD = 12;
@@ -36,12 +36,15 @@ export interface PreviewGroup {
   state: string;
   zip: string;
   notes: string;
-  hours: number;
+  /** Work days it takes (1 unless the notes say otherwise). */
+  days: number;
+  /** When it may be done. */
+  firstDay: string;
+  lastDay: string;
   crew: string[];
   calendars: string[];
   slots: ImportSlot[];
-  /** Slots already in the app from an earlier import. */
-  alreadyImported: number;
+  alreadyImported: boolean;
 }
 
 export type PreviewResult =
@@ -51,6 +54,7 @@ export type PreviewResult =
 /** Google exports a calendar file as e.g. "John Smith_abc123@group.calendar.google.com" or "john@company.com". */
 const calendarLabel = (calendar: string) => calendar.replace(/@.*$/, "").replace(/_[a-z0-9]{10,}$/i, "").replace(/[._]+/g, " ").trim();
 
+/** The same job on two calendars at the same time is one entry. */
 function toSlots(events: CalendarEvent[]): ImportSlot[] {
   const map = new Map<string, ImportSlot>();
   for (const e of events) {
@@ -65,9 +69,18 @@ function toSlots(events: CalendarEvent[]): ImportSlot[] {
   return [...map.values()];
 }
 
-const crewFor = (slot: ImportSlot, employees: { id: string; name: string }[]) => [
-  ...new Set([...mentionedEmployees(slot.text, employees), ...slot.calendars.flatMap((c) => mentionedEmployees(calendarLabel(c), employees))]),
+const crewFor = (slots: ImportSlot[], employees: { id: string; name: string }[]) => [
+  ...new Set(slots.flatMap((s) => [...mentionedEmployees(s.text, employees), ...s.calendars.flatMap((c) => mentionedEmployees(calendarLabel(c), employees))])),
 ];
+
+/** Calendar events already in the app (from this import, or the earlier kind that made locked blocks). */
+async function importedRefs(refs: string[]) {
+  const [projects, blocks] = await Promise.all([
+    db.project.findMany({ where: { externalRefs: { hasSome: refs } }, select: { externalRefs: true } }),
+    db.scheduleBlock.findMany({ where: { externalRef: { in: refs } }, select: { externalRef: true } }),
+  ]);
+  return new Set([...projects.flatMap((p) => p.externalRefs), ...blocks.map((b) => b.externalRef!)]);
+}
 
 /** Step 1: read the Google Calendar export and show what would be imported. Nothing is saved yet. */
 export async function previewCalendar(form: FormData): Promise<PreviewResult> {
@@ -93,9 +106,7 @@ export async function previewCalendar(form: FormData): Promise<PreviewResult> {
 
     const employees = await db.employee.findMany({ where: { active: true }, select: { id: true, name: true } });
     const nameOf = new Map(employees.map((e) => [e.id, e.name]));
-    const existing = new Set(
-      (await db.scheduleBlock.findMany({ where: { externalRef: { in: events.map((e) => e.ref) } }, select: { externalRef: true } })).map((b) => b.externalRef),
-    );
+    const existing = await importedRefs(events.map((e) => e.ref));
 
     const groups = groupEvents(events).map((g): PreviewGroup => {
       const slots = toSlots(g.events);
@@ -108,11 +119,13 @@ export async function previewCalendar(form: FormData): Promise<PreviewResult> {
         state: g.state,
         zip: g.zip,
         notes: g.notes,
-        hours: Math.round(slots.reduce((s, x) => s + (x.endMin - x.startMin) / 60, 0) * 4) / 4,
-        crew: [...new Set(slots.flatMap((s) => crewFor(s, employees)))].map((id) => nameOf.get(id)!),
+        days: g.days,
+        firstDay: g.firstDay,
+        lastDay: g.lastDay,
+        crew: crewFor(slots, employees).map((id) => nameOf.get(id)!),
         calendars: [...new Set(slots.flatMap((s) => s.calendars.map(calendarLabel)))],
         slots,
-        alreadyImported: slots.filter((s) => s.refs.some((r) => existing.has(r))).length,
+        alreadyImported: slots.some((s) => s.refs.some((r) => existing.has(r))),
       };
     });
     return { ok: true, fileName: file.name, calendars, groups, fromDay, toDay };
@@ -122,10 +135,11 @@ export async function previewCalendar(form: FormData): Promise<PreviewResult> {
   }
 }
 
+const DAY = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const Slot = z.object({
   ref: z.string().min(1).max(500),
   refs: z.array(z.string().max(500)).max(50),
-  day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  day: DAY,
   startMin: z.number().int().min(0).max(1440),
   endMin: z.number().int().min(0).max(1440),
   allDay: z.boolean(),
@@ -140,14 +154,18 @@ const Job = z.object({
   state: z.string().trim().length(2),
   zip: z.string().trim().max(10),
   notes: z.string().max(5000),
+  days: z.number().int().min(1, "A job takes at least 1 day.").max(30),
+  firstDay: DAY,
+  lastDay: DAY,
   slots: z.array(Slot).min(1).max(1000),
 });
 
 export type ImportState = { error?: string } | undefined;
 
 /**
- * Step 2: create the jobs. Each calendar event becomes a locked, committed block (the
- * auto-scheduler never moves it; it only warns about rain or double-booking).
+ * Step 2: create the jobs. Each becomes a job that takes `days` work days and may be done
+ * any day from `firstDay` to `lastDay`; the auto-scheduler puts it on the least busy of them.
+ * Jobs whose days are all inside the frozen days are booked as the calendar had them.
  * Events imported before are skipped, so importing the same file again is safe.
  */
 export async function importCalendar(_prev: ImportState, form: FormData): Promise<ImportState> {
@@ -166,80 +184,100 @@ export async function importCalendar(_prev: ImportState, form: FormData): Promis
     return { error: "Something in the list isn't right." };
   }
 
+  const win = await planningWindow();
+  const workdayHours = (win.settings.workdayEndMin - win.settings.workdayStartMin) / 60;
   const employees = await db.employee.findMany({ where: { active: true }, select: { id: true, name: true } });
   let created = 0;
-  let updated = 0;
-  let blocks = 0;
-  const start = today();
+  let booked = 0;
 
   for (const job of jobs) {
-    const allRefs = job.slots.flatMap((s) => [s.ref, ...s.refs]);
-    const existing = await db.scheduleBlock.findMany({ where: { externalRef: { in: allRefs } }, select: { externalRef: true, projectId: true } });
-    const done = new Set(existing.map((b) => b.externalRef));
-    const slots = job.slots.filter((s) => s.endMin > s.startMin && s.day >= start && ![s.ref, ...s.refs].some((r) => done.has(r)));
+    const refs = job.slots.flatMap((s) => [s.ref, ...s.refs]);
+    if ((await importedRefs(refs)).size) continue;
+    const slots = job.slots.filter((s) => s.day >= win.today);
     if (!slots.length) continue;
-    const hours = slots.reduce((s, x) => s + (x.endMin - x.startMin) / 60, 0);
+    const firstDay = job.firstDay < win.today ? win.today : job.firstDay;
+    const lastDay = job.lastDay < firstDay ? firstDay : job.lastDay;
+    const crew = crewFor(slots, employees);
+    // Too soon for the app to move (frozen days): book it as the calendar had it.
+    const frozen = lastDay < win.firstDay;
     const state = job.state.toUpperCase();
 
-    let projectId = existing[0]?.projectId;
-    if (projectId) {
-      await db.project.update({ where: { id: projectId }, data: { estTotalHours: { increment: hours } } });
-      updated++;
-    } else {
-      // Calendar events often have only a name; the Inbox asks for the missing address later.
-      const coords = job.street && job.city ? await geocodeAddress(`${job.street}, ${job.city}, ${state} ${job.zip}`.trim()) : null;
-      const location = job.city ? await ensureLocation(job.city, state, coords ?? undefined) : null;
-      if (coords && location && location.lat === null) await db.location.update({ where: { id: location.id }, data: coords });
-      const customer = await db.customer.upsert({ where: { name: job.customer }, update: {}, create: { name: job.customer } });
-      const last = await db.project.findFirst({ where: { code: { startsWith: "P-" } }, orderBy: { code: "desc" } });
-      const firstDay = slots.map((s) => s.day).sort()[0];
-      const p = await db.project.create({
-        data: {
-          code: `P-${last ? Number(last.code.slice(2)) + 1 : 1001}`,
-          customerId: customer.id,
-          name: job.name,
-          street: job.street || null,
-          city: location?.city ?? "",
-          state: location?.state ?? state,
-          zip: job.zip || null,
-          lat: coords?.lat ?? null,
-          lng: coords?.lng ?? null,
-          locationId: location?.id ?? null,
-          notes: job.notes || null,
-          estTotalHours: Math.round(hours * 4) / 4,
-          estCrewSize: 2,
-          requestedDate: dayToDate(firstDay),
-          status: "SCHEDULED",
-          acceptedAt: new Date(),
-          statusHistory: { create: { toStatus: "SCHEDULED", changedById: user.id, reason: "Imported from Google Calendar" } },
-        },
-      });
-      projectId = p.id;
-      created++;
-    }
-
-    for (const s of slots) {
-      await db.scheduleBlock.create({
-        data: {
-          projectId,
-          day: dayToDate(s.day),
-          startMin: s.startMin,
-          endMin: s.endMin,
-          state: "COMMITTED",
-          pinned: true,
-          externalRef: s.ref,
-          createdById: user.id,
-          assignments: { create: crewFor(s, employees).map((employeeId) => ({ employeeId })) },
-        },
-      });
-      blocks++;
-    }
+    // Calendar events often have only a name; the Inbox asks for the missing address later.
+    const coords = job.street && job.city ? await geocodeAddress(`${job.street}, ${job.city}, ${state} ${job.zip}`.trim()) : null;
+    const location = job.city ? await ensureLocation(job.city, state, coords ?? undefined) : null;
+    if (coords && location && location.lat === null) await db.location.update({ where: { id: location.id }, data: coords });
+    const customer = await db.customer.upsert({ where: { name: job.customer }, update: {}, create: { name: job.customer } });
+    const last = await db.project.findFirst({ where: { code: { startsWith: "P-" } }, orderBy: { code: "desc" } });
+    const status = frozen ? "SCHEDULED" : "READY";
+    const p = await db.project.create({
+      data: {
+        code: `P-${last ? Number(last.code.slice(2)) + 1 : 1001}`,
+        customerId: customer.id,
+        name: job.name,
+        street: job.street || null,
+        city: location?.city ?? "",
+        state: location?.state ?? state,
+        zip: job.zip || null,
+        lat: coords?.lat ?? null,
+        lng: coords?.lng ?? null,
+        locationId: location?.id ?? null,
+        notes: job.notes || null,
+        externalRefs: refs,
+        estTotalHours: job.days * workdayHours,
+        estCrewSize: crew.length || 2,
+        requestedDate: dayToDate(firstDay),
+        // A span of days on the calendar is the window it may be done in.
+        earliestDate: lastDay > firstDay ? dayToDate(firstDay) : null,
+        deadline: lastDay > firstDay ? dayToDate(lastDay) : null,
+        status,
+        acceptedAt: new Date(),
+        statusHistory: { create: { toStatus: status, changedById: user.id, reason: "Imported from Google Calendar" } },
+        blocks: frozen
+          ? {
+              create: {
+                day: dayToDate(slots[0].day),
+                startMin: win.settings.workdayStartMin,
+                endMin: win.settings.workdayEndMin,
+                state: "COMMITTED",
+                pinned: true,
+                createdById: user.id,
+                assignments: { create: crew.map((employeeId) => ({ employeeId })) },
+              },
+            }
+          : undefined,
+      },
+    });
+    created++;
+    if (frozen) booked++;
+    const when = lastDay > firstDay ? `any day ${fmtDay(firstDay)}–${fmtDay(lastDay)}` : fmtDay(firstDay);
     await db.auditLog.create({
-      data: { actorId: user.id, entityType: "Project", entityId: projectId, action: "IMPORT", summary: `Imported ${projectLabel(job)} from Google Calendar (${slots.length} day${slots.length === 1 ? "" : "s"})` },
+      data: { actorId: user.id, entityType: "Project", entityId: p.id, action: "IMPORT", summary: `Imported ${projectLabel(p)} from Google Calendar (${job.days} day${job.days === 1 ? "" : "s"}, ${when})` },
     });
   }
 
-  if (blocks) await replan("calendar import", user.id);
+  if (created) await replan("calendar import", user.id);
   revalidatePath("/", "layout");
-  redirect(`/import?created=${created}&updated=${updated}&blocks=${blocks}`);
+  redirect(`/import?created=${created}&booked=${booked}`);
+}
+
+/**
+ * Remove the jobs an earlier import created, so the calendar can be imported again with
+ * the current rules. Jobs the crew has started or reported on are kept.
+ */
+export async function removeImportedJobs() {
+  const user = await authorize(OFFICE);
+  const candidates = await db.project.findMany({
+    where: { OR: [{ externalRefs: { isEmpty: false } }, { blocks: { some: { externalRef: { not: null } } } }] },
+    select: { id: true, actualHours: true, blocks: { select: { progress: true } }, _count: { select: { conditionReports: true, photos: true } } },
+  });
+  const removable = candidates.filter((p) => p.actualHours === 0 && p.blocks.every((b) => b.progress === "PLANNED") && !p._count.conditionReports && !p._count.photos);
+  if (removable.length) {
+    await db.project.deleteMany({ where: { id: { in: removable.map((p) => p.id) } } });
+    await db.auditLog.create({
+      data: { actorId: user.id, entityType: "Project", entityId: "calendar-import", action: "DELETE", summary: `Removed ${removable.length} job${removable.length === 1 ? "" : "s"} imported from Google Calendar` },
+    });
+    await replan("imported jobs removed", user.id);
+  }
+  revalidatePath("/", "layout");
+  redirect(`/import?removed=${removable.length}&kept=${candidates.length - removable.length}`);
 }

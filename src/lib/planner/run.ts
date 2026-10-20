@@ -113,6 +113,7 @@ async function replanNow(trigger: string, actorId: string | null) {
         workdayStartMin: win.settings.workdayStartMin,
         workdayEndMin: win.settings.workdayEndMin,
         workSaturdays: win.settings.workSaturdays,
+        spreadDays: win.settings.spreadDays,
         employees: employees.map(toEEmployee),
         equipment: equipment.map(toEEquipment),
         jobs: jobs.filter((j) => j.hoursNeeded > 0),

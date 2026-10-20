@@ -61,6 +61,7 @@ describe("planSchedule", () => {
   it("respects locked work, time off, skills and drive time", () => {
     const r = planSchedule(
       base({
+        spreadDays: 0, // stay on the requested date so the constraints are what's tested
         employees: [emp("john", ["layout"], { timeOff: [{ startDay: TUE, endDay: TUE, startMin: null, endMin: null, type: "SICK" }] }), emp("david"), emp("chris"), emp("jason", ["layout"])],
         jobs: [job("walmart", { ...WINDER, city: "Winder", locationId: "winder", requiredSkills: [{ skillId: "layout", skillName: "Layout", minCount: 1 }] })],
         fixed: [{ projectId: "x", day: TUE, startMin: 420, endMin: 600, employeeIds: ["jason"], equipmentIds: ["truck1"], city: "Athens", ...ATHENS }],
@@ -99,5 +100,27 @@ describe("planSchedule", () => {
     expect(r.blocks[0].day).toBe(TUE);
     expect(r.blocks[0].late).toBe(true);
     expect(r.blocks[0].why).toContain("after the due date (Mon 10/26)");
+  });
+
+  it("spreads jobs onto the least busy days near their requested date", () => {
+    const fullDay = { hoursNeeded: 10.5 };
+    const crews = [emp("a"), emp("b"), emp("c"), emp("d"), emp("e"), emp("f")];
+    const trucks = ["t1", "t2", "t3"].map((id) => ({ id, name: id, type: "TRUCK", active: true, status: "AVAILABLE", downtime: [] }));
+    const r = planSchedule(base({ employees: crews, equipment: trucks, jobs: ["a", "b", "c"].map((id) => job(id, fullDay)) }));
+    // All three asked for Tuesday; one keeps it and the others go to the nearest empty days.
+    expect(r.blocks.map((b) => b.day).sort()).toEqual([MON, TUE, WED]);
+    expect(r.blocks.find((b) => b.day === TUE)!.why).toContain("nothing else booked that day");
+  });
+
+  it("only moves a job as far as the spread setting allows", () => {
+    const busyTue = { projectId: "x", day: TUE, startMin: 420, endMin: 1050, employeeIds: ["chris"], equipmentIds: [], city: "Athens", ...ATHENS };
+    expect(planSchedule(base({ jobs: [job("kroger")], fixed: [busyTue] })).blocks[0].day).not.toBe(TUE);
+    expect(planSchedule(base({ spreadDays: 0, jobs: [job("kroger")], fixed: [busyTue] })).blocks[0].day).toBe(TUE);
+  });
+
+  it("leaves jobs requested far beyond the planning window for later", () => {
+    const r = planSchedule(base({ jobs: [job("later", { requestedDate: "2027-01-15" })] }));
+    expect(r.blocks).toEqual([]);
+    expect(r.unplaced).toEqual([]);
   });
 });

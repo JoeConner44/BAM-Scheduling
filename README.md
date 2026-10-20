@@ -12,7 +12,7 @@ See [docs/PLAN.md](docs/PLAN.md) for the full plan and phase status, and [docs/D
 |---|---|---|
 | Inbox (scheduler home) | `/` | New jobs waiting for a requested date, alerts (rain, cold, wind, conflicts, jobs that can't fit, jobs missing an address, type of work or crew), what the auto-scheduler changed and why, then today's overview |
 | Accept a job (estimator home) | `/jobs/new` | Upload the work order; the app reads job name, address, materials and dates (Claude) for the estimator to check and accept |
-| Import from Google Calendar | `/import` | Upload Google Calendar's export (.zip or .ics). The app lists the upcoming jobs it found; untick anything that isn't a job and import. Each event becomes a locked, committed day on the schedule, with crew named in the event or calendar. Events with only a job name import too. Safe to run again |
+| Import from Google Calendar | `/import` | Upload Google Calendar's export (.zip or .ics). Each entry becomes a one-day job (unless its notes say "3 days"); an entry spanning several days means it can be done on any of them. The auto-scheduler puts it on the least busy day. Events with only a job name import too. Safe to run again, and an earlier import can be removed and redone |
 | Settings | `/settings` | Weather limits per type of work, workday hours, frozen days, planning horizon |
 | TO DO board | `/todo` | Every open project as a card, with 12 filters, sorting, and grouping by location |
 | Scheduling board | `/board` | Drag-and-drop week and day views. Rows for each person and each piece of equipment. Tentative vs committed. Conflict checks run live |
@@ -27,7 +27,7 @@ See [docs/PLAN.md](docs/PLAN.md) for the full plan and phase status, and [docs/D
 
 1. The estimator accepts a job (work order upload).
 2. The scheduler enters the customer's requested date.
-3. The auto-scheduler (`src/lib/planner`) places the job on the best workable day it can find. It checks:
+3. The auto-scheduler (`src/lib/planner`) places the job on the least busy workable day within a few work days of the requested date (the "Spread jobs up to" setting), never before its earliest date and only past its deadline as a last resort. It checks:
    - the National Weather Service hourly forecast against the weather limits for that type of work
    - crew availability, skills and time off
    - equipment, and drive time between jobs
