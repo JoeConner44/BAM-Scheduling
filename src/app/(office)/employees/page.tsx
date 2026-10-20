@@ -1,6 +1,7 @@
 import Link from "next/link";
 import clsx from "clsx";
-import { addOfficeUser, addSkill, markSickToday, setOfficeUserActive } from "@/app/actions/resources";
+import { addOfficeUser, addSkill, deleteOfficeUser, markSickToday, setOfficeUserActive, updateOfficeUser } from "@/app/actions/resources";
+import { ConfirmButton } from "@/components/ConfirmButton";
 import { OFFICE, requireUser } from "@/lib/auth";
 import { ROLE_LABEL } from "@/lib/labels";
 import { db } from "@/lib/db";
@@ -11,7 +12,10 @@ export const metadata = { title: "People · BAM Scheduling" };
 
 export default async function EmployeesPage({ searchParams }: PageProps<"/employees">) {
   const me = await requireUser(OFFICE);
-  const welcome = (await searchParams).welcome === "1";
+  const sp = await searchParams;
+  const welcome = sp.welcome === "1";
+  const notice = typeof sp.notice === "string" ? sp.notice : null;
+  const error = typeof sp.error === "string" ? sp.error : null;
   const [officeUsers, skills] = await Promise.all([
     db.user.findMany({ where: { role: { in: ["OWNER", "DISPATCHER", "ESTIMATOR"] } }, orderBy: [{ active: "desc" }, { name: "asc" }] }),
     db.skill.findMany({ orderBy: { name: "asc" } }),
@@ -41,6 +45,17 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/employ
           + Add person
         </Link>
       </div>
+
+      {notice && (
+        <div className="rounded-lg bg-emerald-50 p-3 text-sm font-semibold text-emerald-800" role="status">
+          ✅ {notice}
+        </div>
+      )}
+      {error && (
+        <div className="rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700" role="alert">
+          ⚠️ {error}
+        </div>
+      )}
 
       {welcome && (
         <section className="card border-l-8 border-emerald-500 p-4">
@@ -99,6 +114,9 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/employ
                 </Link>
                 <div className="flex flex-col items-end gap-1">
                   <span className={clsx("chip", EMPLOYEE_STATUS_COLOR[status])}>{EMPLOYEE_STATUS_LABEL[status]} today</span>
+                  <Link href={`/employees/${e.id}`} className="text-xs font-semibold text-blue-700 hover:underline">
+                    ✏️ Edit / delete
+                  </Link>
                   {!offToday.length && e.active && (
                     <form action={markSickToday}>
                       <input type="hidden" name="employeeId" value={e.id} />
@@ -150,17 +168,43 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/employ
           <p className="mb-2 text-xs text-slate-500">Owners, schedulers and estimators. Estimators only see the &quot;Accept a job&quot; screen. Crew members get their phone login when you add them above.</p>
           <ul className="divide-y divide-slate-100 text-sm">
             {officeUsers.map((u) => (
-              <li key={u.id} className={clsx("flex items-center justify-between gap-2 py-1.5", !u.active && "opacity-50")}>
-                <span>
-                  <b>{u.name}</b> <span className="chip bg-slate-100 text-slate-700">{ROLE_LABEL[u.role]}</span>
-                  {u.id === me.id && <span className="ml-1 text-xs text-slate-500">(you)</span>}
-                </span>
-                {me.role === "OWNER" && u.id !== me.id && (
-                  <form action={setOfficeUserActive}>
-                    <input type="hidden" name="id" value={u.id} />
-                    <input type="hidden" name="active" value={u.active ? "" : "on"} />
-                    <button className="text-xs font-semibold text-blue-700 hover:underline">{u.active ? "Turn off" : "Turn back on"}</button>
-                  </form>
+              <li key={u.id} className={clsx("py-1.5", !u.active && "opacity-50")}>
+                <div className="flex items-center justify-between gap-2">
+                  <span>
+                    <b>{u.name}</b> <span className="chip bg-slate-100 text-slate-700">{ROLE_LABEL[u.role]}</span>
+                    {u.id === me.id && <span className="ml-1 text-xs text-slate-500">(you)</span>}
+                    {!u.active && <span className="ml-1 text-xs text-slate-500">(turned off)</span>}
+                  </span>
+                  {me.role === "OWNER" && u.id !== me.id && (
+                    <span className="flex shrink-0 items-center gap-3">
+                      <form action={setOfficeUserActive}>
+                        <input type="hidden" name="id" value={u.id} />
+                        <input type="hidden" name="active" value={u.active ? "" : "on"} />
+                        <button className="text-xs font-semibold text-blue-700 hover:underline">{u.active ? "Turn off" : "Turn back on"}</button>
+                      </form>
+                      <form action={deleteOfficeUser}>
+                        <input type="hidden" name="id" value={u.id} />
+                        <ConfirmButton className="text-xs font-semibold text-red-700 hover:underline" message={`Delete the login for ${u.name}? Their past notes and history stay, without their name.`}>
+                          Delete
+                        </ConfirmButton>
+                      </form>
+                    </span>
+                  )}
+                </div>
+                {me.role === "OWNER" && (
+                  <details className="mt-1">
+                    <summary className="cursor-pointer text-xs font-semibold text-blue-700">Edit</summary>
+                    <form action={updateOfficeUser} className="mt-1.5 flex flex-wrap gap-2">
+                      <input type="hidden" name="id" value={u.id} />
+                      <input name="name" className="input max-w-xs flex-1" defaultValue={u.name} required aria-label={`Name for ${u.name}`} />
+                      <select name="role" className="input w-auto" defaultValue={u.role} aria-label={`Role for ${u.name}`}>
+                        <option value="DISPATCHER">Scheduler</option>
+                        <option value="ESTIMATOR">Estimator</option>
+                        <option value="OWNER">Owner</option>
+                      </select>
+                      <button className="btn-secondary">Save</button>
+                    </form>
+                  </details>
                 )}
               </li>
             ))}

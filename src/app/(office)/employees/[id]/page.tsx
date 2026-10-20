@@ -1,7 +1,8 @@
 import Link from "next/link";
 import clsx from "clsx";
 import { notFound } from "next/navigation";
-import { deleteTimeOff } from "@/app/actions/resources";
+import { deleteEmployee, deleteTimeOff } from "@/app/actions/resources";
+import { ConfirmButton } from "@/components/ConfirmButton";
 import { EmployeeForm, TimeOffForm } from "@/components/EmployeeForms";
 import { OFFICE, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -96,6 +97,22 @@ export default async function EmployeePage({ params }: PageProps<"/employees/[id
               ))}
               {!upcoming.length && <li className="text-slate-500">Nothing scheduled.</li>}
             </ul>
+          </section>
+          <section className="card p-4">
+            <h2 className="mb-1 font-bold">Remove this person</h2>
+            <p className="mb-2 text-xs text-slate-500">
+              Leaving for a while or for good? Set <b>Active</b> to &quot;No longer with company&quot; above to keep their history visible. Delete removes them and their phone login
+              completely{upcoming.length ? ` and takes them off ${upcoming.length} upcoming job${upcoming.length > 1 ? "s" : ""}` : ""}.
+            </p>
+            <form action={deleteEmployee}>
+              <input type="hidden" name="employeeId" value={employee.id} />
+              <ConfirmButton
+                className="btn-secondary w-full text-red-700"
+                message={`Delete ${employee.name}${upcoming.length ? ` and take them off ${upcoming.length} upcoming job(s)` : ""}? This can't be undone.`}
+              >
+                🗑️ Delete {employee.name}
+              </ConfirmButton>
+            </form>
           </section>
         </div>
       </div>
