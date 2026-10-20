@@ -6,6 +6,8 @@ import { OFFICE, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 export const metadata = { title: "Import from Google Calendar · BAM Scheduling" };
+// A big calendar takes a while to import (address lookups, then a re-plan).
+export const maxDuration = 300;
 
 export default async function ImportPage({ searchParams }: PageProps<"/import">) {
   await requireUser(OFFICE);

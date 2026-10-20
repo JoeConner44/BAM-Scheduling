@@ -41,7 +41,20 @@ export function CalendarImport() {
         {result?.ok && (
           <p className="text-sm text-slate-600">
             Read {result.calendars.length} calendar{result.calendars.length === 1 ? "" : "s"} ({result.calendars.map((c) => `${c.name}: ${c.events}`).join(", ")}) for the next
-            12 months. Found {rows.length} possible job{rows.length === 1 ? "" : "s"}.
+            12 months. Found {rows.length} job{rows.length === 1 ? "" : "s"}.
+            {result.skipped.past + result.skipped.later + result.skipped.cancelled > 0 && (
+              <span className="block" data-testid="import-skipped">
+                Left out:{" "}
+                {[
+                  result.skipped.past && `${result.skipped.past} already past`,
+                  result.skipped.later && `${result.skipped.later} more than 12 months away`,
+                  result.skipped.cancelled && `${result.skipped.cancelled} cancelled`,
+                ]
+                  .filter(Boolean)
+                  .join(", ")}
+                .
+              </span>
+            )}
           </p>
         )}
       </form>

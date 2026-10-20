@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { authorize, OFFICE } from "@/lib/auth";
-import { groupEvents, icsTextsFromUpload, mentionedEmployees, parseIcs, type CalendarEvent } from "@/lib/calendar-import";
+import { groupEvents, icsTextsFromUpload, mentionedEmployees, parseIcs, type CalendarEvent, type ParseStats } from "@/lib/calendar-import";
 import { ensureLocation, projectLabel } from "@/lib/data";
 import { db } from "@/lib/db";
 import { geocodeAddress } from "@/lib/geocode";
@@ -14,6 +14,7 @@ import { addDays, dayToDate, fmtDay, today } from "@/lib/time";
 
 /** How far ahead to look in the calendar. */
 const IMPORT_MONTHS_AHEAD = 12;
+const GEOCODE_AT_ONCE = 8;
 
 /** One block to create: calendar events at the same time for the same job (e.g. the same job on two crew calendars) merge. */
 export interface ImportSlot {
@@ -48,7 +49,7 @@ export interface PreviewGroup {
 }
 
 export type PreviewResult =
-  | { ok: true; fileName: string; calendars: { name: string; events: number }[]; groups: PreviewGroup[]; fromDay: string; toDay: string }
+  | { ok: true; fileName: string; calendars: { name: string; events: number }[]; groups: PreviewGroup[]; skipped: ParseStats; fromDay: string; toDay: string }
   | { ok: false; error: string };
 
 /** Google exports a calendar file as e.g. "John Smith_abc123@group.calendar.google.com" or "john@company.com". */
@@ -98,8 +99,9 @@ export async function previewCalendar(form: FormData): Promise<PreviewResult> {
 
     const calendars: { name: string; events: number }[] = [];
     const events: CalendarEvent[] = [];
+    const skipped: ParseStats = { past: 0, later: 0, cancelled: 0 };
     for (const f of files) {
-      const found = parseIcs(f.text, { fromDay, toDay, workdayStartMin: settings.workdayStartMin, workdayEndMin: settings.workdayEndMin }).map((e) => ({ ...e, calendar: f.calendar }));
+      const found = parseIcs(f.text, { fromDay, toDay, workdayStartMin: settings.workdayStartMin, workdayEndMin: settings.workdayEndMin, stats: skipped }).map((e) => ({ ...e, calendar: f.calendar }));
       calendars.push({ name: calendarLabel(f.calendar) || f.calendar, events: found.length });
       events.push(...found);
     }
@@ -128,7 +130,7 @@ export async function previewCalendar(form: FormData): Promise<PreviewResult> {
         alreadyImported: slots.some((s) => s.refs.some((r) => existing.has(r))),
       };
     });
-    return { ok: true, fileName: file.name, calendars, groups, fromDay, toDay };
+    return { ok: true, fileName: file.name, calendars, groups, skipped, fromDay, toDay };
   } catch (e) {
     console.error("Calendar preview failed:", e);
     return { ok: false, error: "That file couldn't be read as a calendar. Upload the .zip (or .ics) file exactly as Google Calendar exported it." };
@@ -190,6 +192,16 @@ export async function importCalendar(_prev: ImportState, form: FormData): Promis
   let created = 0;
   let booked = 0;
 
+  // Look up street addresses a few at a time up front: one by one, a big calendar could time out.
+  const addressOf = (job: z.infer<typeof Job>) => (job.street && job.city ? `${job.street}, ${job.city}, ${job.state.toUpperCase()} ${job.zip}`.trim() : null);
+  const addresses = [...new Set(jobs.map(addressOf).filter((a): a is string => !!a))];
+  const coordsByAddress = new Map<string, { lat: number; lng: number } | null>();
+  for (let i = 0; i < addresses.length; i += GEOCODE_AT_ONCE) {
+    const batch = addresses.slice(i, i + GEOCODE_AT_ONCE);
+    const found = await Promise.all(batch.map((a) => geocodeAddress(a).catch(() => null)));
+    batch.forEach((a, j) => coordsByAddress.set(a, found[j]));
+  }
+
   for (const job of jobs) {
     const refs = job.slots.flatMap((s) => [s.ref, ...s.refs]);
     if ((await importedRefs(refs)).size) continue;
@@ -203,7 +215,8 @@ export async function importCalendar(_prev: ImportState, form: FormData): Promis
     const state = job.state.toUpperCase();
 
     // Calendar events often have only a name; the Inbox asks for the missing address later.
-    const coords = job.street && job.city ? await geocodeAddress(`${job.street}, ${job.city}, ${state} ${job.zip}`.trim()) : null;
+    const address = addressOf(job);
+    const coords = address ? (coordsByAddress.get(address) ?? null) : null;
     const location = job.city ? await ensureLocation(job.city, state, coords ?? undefined) : null;
     if (coords && location && location.lat === null) await db.location.update({ where: { id: location.id }, data: coords });
     const customer = await db.customer.upsert({ where: { name: job.customer }, update: {}, create: { name: job.customer } });
