@@ -265,6 +265,7 @@ test("importing Google Calendar jobs: one day each, on the least busy day in the
   const rows = page.getByTestId("import-row");
   await expect(rows).toHaveCount(3);
   await expect(page.getByText("Old job last month")).toHaveCount(0);
+  await expect(page.getByTestId("import-skipped")).toHaveText("Left out: 1 already past.");
   await expect(rows.filter({ hasText: "Walmart Commerce" })).toContainText("1 day of work, any day Tue 9/29 – Wed 9/30");
   await expect(rows.filter({ hasText: "Waffle House Bogart" })).toContainText("around Mon 9/28");
   await expect(rows.filter({ hasText: "Waffle House Bogart" })).toContainText("crew: John");

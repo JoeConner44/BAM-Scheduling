@@ -144,4 +144,40 @@ describe("Google Calendar import", () => {
     const zip = zipSync({ "Takeout/Calendar/BAM Jobs.ics": strToU8(ICS), "Takeout/Calendar/Holidays.ics": strToU8("BEGIN:VCALENDAR\nEND:VCALENDAR"), "readme.txt": strToU8("x") });
     expect(icsTextsFromUpload("calendar.zip", zip).map((f) => f.calendar)).toEqual(["BAM Jobs", "Holidays"]);
   });
+
+  it("doesn't lose events: old repeating series, weekends, shared IDs, orphans, odd lengths", () => {
+    const cal = (body: string) => `BEGIN:VCALENDAR\nVERSION:2.0\n${body}END:VCALENDAR`;
+    const ev = (lines: string) => `BEGIN:VEVENT\n${lines}\nEND:VEVENT\n`;
+    const stats = { past: 0, later: 0, cancelled: 0 };
+    const found = parseIcs(
+      cal(
+        // A daily series started years ago (well over 1,000 repeats before today).
+        ev("DTSTART:20220103T130000Z\nDTEND:20220103T140000Z\nRRULE:FREQ=DAILY\nUID:daily@x\nSUMMARY:Daily check") +
+          // One occurrence of it deleted in Google.
+          ev("DTSTART:20261021T130000Z\nDTEND:20261021T140000Z\nRECURRENCE-ID:20261021T130000Z\nSTATUS:CANCELLED\nUID:daily@x\nSUMMARY:Daily check") +
+          // An all-day job on a Saturday.
+          ev("DTSTART;VALUE=DATE:20261024\nDTEND;VALUE=DATE:20261025\nUID:sat@x\nSUMMARY:Saturday job") +
+          // Two different events with the same UID.
+          ev("DTSTART:20261026T130000Z\nDTEND:20261026T150000Z\nUID:dup@x\nSUMMARY:Job A") +
+          ev("DTSTART:20261027T130000Z\nDTEND:20261027T150000Z\nUID:dup@x\nSUMMARY:Job B") +
+          // A moved occurrence whose series is gone.
+          ev("DTSTART:20261028T130000Z\nDTEND:20261028T150000Z\nRECURRENCE-ID:20261028T120000Z\nUID:gone@x\nSUMMARY:Orphan job") +
+          // No length, and a timed event over two days.
+          ev("DTSTART:20261029T130000Z\nDTEND:20261029T130000Z\nUID:zero@x\nSUMMARY:Zero length") +
+          ev("DTSTART:20261029T130000Z\nDTEND:20261030T200000Z\nUID:span@x\nSUMMARY:Two day span") +
+          ev("DTSTART:20250101T130000Z\nDTEND:20250101T140000Z\nUID:past@x\nSUMMARY:Past") +
+          ev("DTSTART:20261101T130000Z\nDTEND:20261101T140000Z\nUID:off@x\nSTATUS:CANCELLED\nSUMMARY:Off"),
+      ),
+      { fromDay: "2026-10-19", toDay: "2026-10-30", workdayStartMin: 420, workdayEndMin: 1050, stats },
+    );
+    const days = (summary: string) => found.filter((e) => e.summary === summary).map((e) => e.day);
+    expect(days("Daily check")).toEqual(["2026-10-19", "2026-10-20", "2026-10-22", "2026-10-23", "2026-10-24", "2026-10-25", "2026-10-26", "2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30"]);
+    expect(days("Saturday job")).toEqual(["2026-10-24"]);
+    expect([...days("Job A"), ...days("Job B")]).toEqual(["2026-10-26", "2026-10-27"]);
+    expect(days("Orphan job")).toEqual(["2026-10-28"]);
+    expect(days("Zero length")).toEqual(["2026-10-29"]);
+    expect(days("Two day span")).toEqual(["2026-10-29", "2026-10-30"]);
+    expect(new Set(found.map((e) => e.ref)).size).toBe(found.length);
+    expect(stats).toEqual({ past: 1, later: 0, cancelled: 1 });
+  });
 });
